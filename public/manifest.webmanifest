@@ -1,0 +1,10 @@
+{
+  "name": "Dhindhora",
+  "short_name": "Dhindhora",
+  "description": "Apni dukaan ka dhindhora peeto",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#2B1E2F",
+  "theme_color": "#2B1E2F",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

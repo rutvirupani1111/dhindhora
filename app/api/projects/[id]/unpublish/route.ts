@@ -1,0 +1,14 @@
+import { revalidatePath } from "next/cache";
+import { getActor } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { checkOrigin, json, notFound } from "@/lib/http";
+
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const o = checkOrigin(req, "none"); if (o) return o;
+  const { id } = await params;
+  const a = await getActor(); if (!a) return notFound();
+  const r = await db.query("update projects set visibility = 'private', published_doc = null, published_version = null where id = $1 and owner_id = $2 and deleted_at is null returning id", [id, a.id]);
+  if (!r[0]) return notFound();
+  revalidatePath(`/v/${id}`); revalidatePath(`/v/${id}/data.json`);
+  return json({ ok: true });
+}

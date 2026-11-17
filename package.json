@@ -1,0 +1,38 @@
+{
+  "name": "dhindhora",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dhindhora: beat the town drum for your dukaan. A free in-browser studio for silent motion promos.",
+  "author": "Rutvi Rupani",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "next dev -p 3712",
+    "prebuild": "node scripts/build-player.mjs",
+    "build": "next build",
+    "start": "next start -p 3712",
+    "typecheck": "tsc --noEmit",
+    "migrate": "node scripts/migrate.mjs",
+    "seed": "node scripts/seed-demos.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["sharp", "@tailwindcss/oxide", "unrs-resolver"]
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
+    "motion": "14.13.0",
+    "next": "16.4.6",
+    "qrcode-generator": "1.4.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7",
+    "zustand": "5.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3"
+  }
+}
