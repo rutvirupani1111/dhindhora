@@ -148,8 +148,18 @@ export function blockFont(styleId: StyleId, kind: "display" | "body", text: stri
 type Seg = { s: string; word: boolean };
 function segWords(text: string, lang: string): Seg[] {
   const Sg = (Intl as any).Segmenter;
-  if (Sg) return Array.from(new Sg(lang, { granularity: "word" }).segment(text) as Iterable<any>).map((x: any) => ({ s: x.segment, word: x.isWordLike !== false || !/^\s+$/.test(x.segment) }));
-  return text.split(/(\s+)/).filter(Boolean).map((s) => ({ s, word: !/^\s+$/.test(s) }));
+  const raw: string[] = Sg
+    ? Array.from(new Sg(lang, { granularity: "word" }).segment(text) as Iterable<any>).map((x: any) => x.segment as string)
+    : text.split(/(\s+)/).filter(Boolean);
+  // segments with no space between them ("20" + "%", "offer" + ",") are one token: punctuation never starts a line
+  const out: Seg[] = [];
+  for (const s of raw) {
+    const space = /^\s+$/.test(s);
+    const prev = out[out.length - 1];
+    if (!space && prev && prev.word) { prev.s += s; continue; }
+    out.push({ s, word: !space });
+  }
+  return out;
 }
 export function graphemes(text: string): string[] {
   const Sg = (Intl as any).Segmenter;

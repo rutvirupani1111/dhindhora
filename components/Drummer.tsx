@@ -28,7 +28,7 @@ export function Drummer({ state, chit, calm, beatSignal }: { state: DrumState; c
   const wave = !calm && state === "wave" && beatStep % 2 === 1;
   const label = { idle: "Dhindhora-wala khada hai", drum: "Dhindhora-wala dhol baja raha hai", beat: "Dhindhora-wala ne thaap di", nod: "Dhindhora-wala ne sir hilaya: bhej diya", shrug: "Dhindhora-wala ne kandhe uchkaaye: phone pe rakh liya", wave: "Dhindhora-wala haath hila raha hai" }[state];
   return (
-    <div className="fixed left-2 bottom-[146px] z-40 pointer-events-none select-none md:bottom-4" style={{ width: 72, height: 72 }}>
+    <div className="drum-dock pointer-events-none select-none" style={{ width: 72, height: 72 }}>
       {chit && (
         <div className="absolute left-14 bottom-12 w-48 bg-chai text-kohl text-[15px] leading-tight px-2 py-1 border-2 border-kohl hard">{chit}</div>
       )}

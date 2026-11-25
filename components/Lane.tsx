@@ -81,7 +81,7 @@ function ShopShutter({ row, local, onSheet }: { row: Row; local?: Local; onSheet
         <motion.div className="absolute inset-0 shutter-steel flex flex-col items-center justify-center gap-2 border-b-[10px] border-kohl" style={{ y: yPct }}>
           <h3 className="m-0 font-display text-[clamp(22px,6vw,30px)] text-kohl bg-chai/90 px-3 border-2 border-kohl max-w-[88%] truncate" style={{ viewTransitionName: `title-${row.id}` }}>{row.title}</h3>
           <span className="text-[15px] font-bold bg-kohl text-haldi px-2">{status}</span>
-          <span className="absolute bottom-2 right-3 text-[15px] text-kohl font-bold">upar kheecho</span>
+          <span className="absolute bottom-2 right-3 text-[15px] text-kohl font-bold">upar kheecho ya tap karo</span>
         </motion.div>
       </div>
     </div>
@@ -109,7 +109,7 @@ export function Lane({ demos }: { demos: Demo[] }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const newShop = () => go(router, `/studio/${newProjectId()}?at=parchi`);
+  const newShop = () => go(router, `/studio/${newProjectId()}?at=parchi&new=1`);
   const del = async (r: Row) => {
     setSheet(null);
     setRows((xs) => (xs || []).filter((x) => x.id !== r.id));
@@ -162,7 +162,22 @@ export function Lane({ demos }: { demos: Demo[] }) {
       </header>
 
       <main className="relative z-10 px-4 pb-40">
-        <p className="mx-auto max-w-[1180px] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[14vh] mb-6">{t("hero")}</p>
+        <p className="mx-auto max-w-[1180px] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[12vh] mb-4">{t("hero")}</p>
+
+        {/* how it works: three painted tin signs nailed in a row, so nobody has to guess */}
+        <section className="mx-auto max-w-[1180px] mb-6" aria-labelledby="how">
+          <h2 id="how" className="sr-only">{t("how")}</h2>
+          <ol className="m-0 p-0 list-none grid grid-cols-3 gap-2 max-w-[560px]">
+            {([["1", "how1", "how1s", "bg-haldi"], ["2", "how2", "how2s", "bg-genda"], ["3", "how3", "how3s", "bg-tota text-chai"]] as const).map(([n, a, b, c], i) => (
+              <li key={n} className={`relative border-2 border-kohl hard px-2 pt-1 pb-2 text-kohl ${c}`} style={{ rotate: `${[-1.5, 1, -0.5][i]}deg` }}>
+                <span aria-hidden className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-kohl" />
+                <span className="block font-poster text-[26px] leading-none mt-1">{n}</span>
+                <span className="block font-bold text-[15px] leading-tight">{t(a)}</span>
+                <span className="block text-[13px] leading-tight opacity-90">{t(b)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         {/* Naya dhindhora: shutter half up, paan counter peeking out */}
         <section className="mx-auto max-w-[1180px]">
@@ -178,9 +193,10 @@ export function Lane({ demos }: { demos: Demo[] }) {
               </div>
             </div>
           </button>
+          <a href="#demos" className="inline-block mt-4 text-chai font-bold underline underline-offset-4 decoration-haldi decoration-2 min-h-[44px] leading-[44px]">{t("seeDemos")} ↓</a>
         </section>
 
-        <section className="mx-auto max-w-[1180px] mt-12" aria-labelledby="yours">
+        <section className="mx-auto max-w-[1180px] mt-10" aria-labelledby="yours">
           <h2 id="yours" className="font-display text-chai text-[26px] mb-4">{t("yourShops")}</h2>
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {rows === null && Array.from({ length: 2 }, (_, i) => <div key={i} className="aspect-[4/3] shutter-steel border-4 border-kohl opacity-60" aria-hidden />)}
@@ -194,8 +210,8 @@ export function Lane({ demos }: { demos: Demo[] }) {
           )}
         </section>
 
-        <section className="mx-auto max-w-[1180px] mt-14" aria-labelledby="demos">
-          <h2 id="demos" className="font-display text-chai text-[24px] mb-4">{t("demos")}</h2>
+        <section id="demos-wrap" className="mx-auto max-w-[1180px] mt-14 scroll-mt-4" aria-labelledby="demos">
+          <h2 id="demos" className="font-display text-chai text-[24px] mb-4 scroll-mt-4">{t("demos")}</h2>
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {demos.map((d) => <DemoShop key={d.id} d={d} />)}
           </div>
@@ -236,7 +252,7 @@ export function Lane({ demos }: { demos: Demo[] }) {
 
 function DemoShop({ d }: { d: Demo }) {
   const router = useRouter();
-  const { calm, toast } = useShell();
+  const { calm, toast, t, lang } = useShell();
   const [open, setOpen] = useState(false);
   const y = useMotionValue(0);
   const yPct = useTransform(y, (v) => `${v}%`);
@@ -252,7 +268,8 @@ function DemoShop({ d }: { d: Demo }) {
         <div className="absolute inset-0 grid place-items-center"><div className="h-full" style={{ aspectRatio: d.doc.aspect.replace(":", "/") }}><DocCanvas doc={d.doc} playing={open && !calm} t={coverTime(d.doc)} label={`${d.title} demo`} /></div></div>
         <motion.button className="absolute inset-0 shutter-steel border-0 border-b-[10px] border-kohl cursor-pointer flex flex-col items-center justify-center gap-2" style={{ y: yPct }} onClick={lift} aria-label={`${d.title}: shutter uthao aur demo chalao`}>
           <span className="font-display text-[clamp(20px,5.5vw,28px)] bg-chai/90 border-2 border-kohl px-3 text-kohl max-w-[90%]">{d.title}</span>
-          <span className="bg-haldi text-kohl font-bold px-2 border-2 border-kohl">Demo: kaalpanik dukaan</span>
+          <span className="bg-haldi text-kohl font-bold px-2 border-2 border-kohl">{t("demoLabel")}</span>
+          <span className="absolute bottom-2 right-3 text-[15px] text-kohl font-bold">{lang === "en" ? "tap to play" : "tap karo, chalegi"}</span>
         </motion.button>
       </div>
       <div className="flex gap-3 p-3 bg-chai border-t-4 border-kohl flex-wrap">

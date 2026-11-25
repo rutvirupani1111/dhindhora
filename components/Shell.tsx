@@ -31,6 +31,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const c = readLS("dh.calm") === "1" || reduce; setCalmS(c);
     const th = readLS("dh.theme"); if (th === "dark" || th === "light") document.documentElement.dataset.theme = th;
+    // offline-first: the service worker caches the shell, chunks, fonts and the player
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => undefined);
   }, []);
   useEffect(() => { document.documentElement.classList.toggle("calm", calm); }, [calm]);
 

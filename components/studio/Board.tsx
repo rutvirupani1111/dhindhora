@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Doc, Scene } from "@/packages/renderer/core";
 import { SCENE_LABEL } from "@/packages/renderer/core";
+import { totalMs } from "@/packages/renderer/frame";
 import { rebrief, reshuffle } from "@/lib/client/edit";
 import { useStudio } from "@/lib/client/store";
 import { DocCanvas } from "../DocCanvas";
@@ -11,7 +12,7 @@ import { useShell } from "../Shell";
 const FRAME: Record<Scene["type"], string> = {
   shutter: "border-[6px] border-[#D7261E] outline outline-4 outline-[#F2B705]",
   meter: "rounded-full border-[6px] border-kohl overflow-hidden",
-  kite: "[clip-path:polygon(50%_0,100%_50%,50%_100%,0_50%)]",
+  kite: "border-[6px] border-double border-rani rotate-[1.5deg]",
   magazine: "rotate-[-3deg] border-4 border-chai",
   phone: "border-[6px] border-[#1F6B3A] rounded-md",
   ladoo: "border-4 border-dashed border-kohl",
@@ -47,7 +48,8 @@ const Poster = memo(function Poster({ doc, scene }: { doc: Doc; scene: Scene }) 
 export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rects: Record<string, DOMRect> | null; onClearRects: () => void; onOpenBooth: () => void; onOpenParchi: () => void }) {
   const doc = useStudio((s) => s.doc)!;
   const commit = useStudio((s) => s.commit);
-  const { calm, toast } = useShell();
+  const { calm, toast, lang } = useShell();
+  const en = lang === "en";
   const [sel, setSel] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<Record<string, DOMRect>>({});
@@ -63,7 +65,7 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
   if (!doc.scenes.length) {
     return (
       <div className="rangoli min-h-[70svh] grid place-items-center p-6 text-center">
-        <div className="bg-kohl p-4 border-2 border-chai"><p className="m-0 mb-3">Deewar khaali hai. Pehle parchi bharo.</p><button className="tin-btn" onClick={onOpenParchi}>Parchi bharo</button></div>
+        <div className="bg-kohl text-chai p-4 border-2 border-chai max-w-[360px]"><p className="m-0 mb-3">{en ? "The wall is empty. Fill the chit and press Make: your scenes appear here as posters." : "Deewar khaali hai. Parchi bharo aur Banao dabao: aapke scene yahan poster ban ke lagenge."}</p><button className="tin-btn" onClick={onOpenParchi}>{en ? "Fill the chit" : "Parchi bharo"}</button></div>
       </div>
     );
   }
@@ -74,13 +76,15 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
   };
 
   return (
-    <div className="plaster min-h-[calc(100svh-100px)] pb-44 pt-4 px-3">
+    <div className="plaster min-h-[calc(100svh-100px)] pb-40 pt-4 px-3">
       <div className="mx-auto max-w-[1100px]">
-        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-          <p className="m-0 bg-kohl text-chai px-2 py-1 font-bold">{doc.scenes.length} poster, take {doc.seed}</p>
-          <div className="flex gap-2">
-            <button className="tin-btn" onClick={shuffle}>Phir se phento</button>
-            <button className="tin-btn kohl" onClick={onOpenBooth}>Tambu mein kholo</button>
+        {/* what am I looking at: one plain notice pasted on the wall */}
+        <div className="mb-5 bg-chai text-kohl border-2 border-kohl hard px-3 py-2 max-w-[640px]">
+          <p className="m-0 font-bold">{en ? `Your video: ${doc.scenes.length} scenes, ${(totalMs(doc) / 1000).toFixed(0)} seconds, playing in this order.` : `Aapki video: ${doc.scenes.length} scene, ${(totalMs(doc) / 1000).toFixed(0)} second, isi kram mein chalenge.`}</p>
+          <p className="m-0 text-[15px]">{en ? "Tap a poster to change its words. Want a different mix? Shuffle again." : "Kisi poster pe tap karo: uski line yahin badlo. Kuch alag chahiye? Phir se phento."}</p>
+          <div className="flex gap-2 mt-2 flex-wrap items-center">
+            <button className="tin-btn" onClick={shuffle}>{en ? "Shuffle again" : "Phir se phento"}</button>
+            <span className="mono text-[13px]">take {doc.seed}</span>
           </div>
         </div>
         <div ref={gridRef} className="grid gap-x-4 gap-y-8 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -108,6 +112,12 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
         </div>
       </div>
       {selScene && <SourceDrawer scene={selScene} onClose={() => setSel(null)} />}
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-kohl border-t-4 border-haldi">
+        <div className="mx-auto max-w-[1100px] flex items-center gap-3 pl-[84px] pr-3 py-2 min-h-[76px]">
+          <p className="m-0 flex-1 min-w-0 text-chai text-[15px] leading-tight">{en ? "Next: watch it play and fine-tune." : "Aage: video chala ke dekho, chhote badlaav karo."}</p>
+          <button className="tin-btn shrink-0" onClick={onOpenBooth}>{en ? "3. Edit →" : "3. Sajao →"}</button>
+        </div>
+      </div>
     </div>
   );
 }

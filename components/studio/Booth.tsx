@@ -3,7 +3,7 @@ import { animate, motion, useMotionValue } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Doc, Scene, SceneType, StyleId } from "@/packages/renderer/core";
 import { SCENE_LABEL, STYLE_ORDER, VARIANTS, nanoid } from "@/packages/renderer/core";
-import { boxesAt, frameAt, sceneIndexAt, starts, totalMs } from "@/packages/renderer/frame";
+import { boxesAt, coverTime, frameAt, sceneIndexAt, starts, totalMs } from "@/packages/renderer/frame";
 import { blockSpecs, dims, textFor } from "@/packages/renderer/layout";
 import { STYLES } from "@/packages/renderer/styles";
 import { translit } from "@/packages/renderer/translit";
@@ -21,10 +21,16 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
   const commit = useStudio((s) => s.commit);
   const past = useStudio((s) => s.past.length);
   const fut = useStudio((s) => s.future.length);
-  const { calm, toast } = useShell();
+  const { calm, toast, lang } = useShell();
+  const en = lang === "en";
   const total = totalMs(doc);
-  const [t, setT] = useState(0);
-  const tRef = useRef(0);
+  // open on the cover frame (the hook's words fully on screen), never on an empty first frame
+  const [t, setT] = useState(() => coverTime(doc));
+  const tRef = useRef(t);
+  const [hint, setHint] = useState(false);
+  useEffect(() => { try { setHint(localStorage.getItem("dh.hint.booth") !== "1"); } catch { setHint(true); } }, []);
+  const closeHint = () => { setHint(false); try { localStorage.setItem("dh.hint.booth", "1"); } catch { /* storage blocked */ } };
+  useEffect(() => { const p = () => setPlaying((x) => !x); window.addEventListener("dh-play", p); return () => window.removeEventListener("dh-play", p); }, []);
   const [playing, setPlaying] = useState(false);
   const [sel, setSel] = useState<string | null>(doc.scenes[0]?.id ?? null);
   const [loop, setLoop] = useState(false);
@@ -177,10 +183,22 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
       <svg aria-hidden viewBox="0 0 200 10" preserveAspectRatio="none" className="block w-full h-4"><path d={"M0 0 H200 V4 " + Array.from({ length: 20 }, (_, i) => `Q${200 - i * 10 - 5} 12 ${200 - (i + 1) * 10} 4`).join(" ") + " Z"} fill="var(--mirchi)" /></svg>
       <div className="mx-auto max-w-[980px] px-3 grid gap-4 lg:grid-cols-[1fr_300px]">
         <div className="flex flex-col items-center">
+          {hint && (
+            <div className="w-full max-w-[560px] mb-3 bg-chai text-kohl border-2 border-kohl hard px-3 py-2" role="note">
+              <p className="m-0 font-bold">{en ? "How to edit here" : "Yahan kaise sajayein"}</p>
+              <ul className="m-0 mt-1 pl-5 text-[15px] leading-snug">
+                <li>{en ? "Play shows the whole video." : "Chalao dabao: poori video dekho."}</li>
+                <li>{en ? "Tap any words on the video to retype them." : "Video pe likhe shabd pe tap karo: wahin badlo."}</li>
+                <li>{en ? "Swipe left or right on it, or pick a look below, to change the style." : "Video pe daayein-baayein swipe karo, ya neeche look chuno: rang badlega."}</li>
+                <li>{en ? "Bottom strip: tap a scene, drag its edge to trim, hold and drag to move it." : "Neeche ki patti: scene pe tap, kinaara kheech ke chhota-bada, der tak daba ke khiskao."}</li>
+              </ul>
+              <button className="tin-btn chai mt-2" onClick={closeHint}>{en ? "Got it" : "Samajh gaya"}</button>
+            </div>
+          )}
           <div className="relative w-full flex justify-center" style={{ perspective: 1700 }}>
             {/* projector beam: flat kite-paper trapezoid, no blur */}
             <div aria-hidden className="absolute -top-4 left-1/2 -translate-x-1/2 w-[90%] h-[105%] bg-haldi kite-paper opacity-[.10] [clip-path:polygon(42%_0,58%_0,100%_100%,0_100%)]" />
-            <motion.div ref={wrapRef} className="relative border-4 border-kohl hard-lg bg-kohl" style={{ rotateY: rotY, opacity: fade, transformOrigin: "50% 50%", width: doc.aspect === "16:9" ? "100%" : doc.aspect === "1:1" ? "min(100%, 520px)" : "min(100%, 360px, calc((100svh - 330px) * 9 / 16))", backfaceVisibility: "hidden" }}>
+            <motion.div ref={wrapRef} className="relative border-4 border-kohl hard-lg bg-kohl" style={{ rotateY: rotY, opacity: fade, transformOrigin: "50% 50%", width: doc.aspect === "16:9" ? "100%" : doc.aspect === "1:1" ? "min(100%, 520px, calc(100svh - 380px))" : "min(100%, 360px, calc((100svh - 370px) * 9 / 16))", backfaceVisibility: "hidden" }}>
               <canvas ref={canvasRef} className="block w-full touch-pan-y cursor-pointer" style={{ aspectRatio: `${W}/${H}` }}
                 onPointerDown={onPDown} onPointerUp={onPUp} onPointerCancel={() => (g.current = null)}
                 role="img" aria-label={`Preview, ${SCENE_LABEL[doc.scenes[idx]?.type || "shutter"].hi}. Text pe tap karke likho, daayein baayein swipe se rang badlo.`} />
@@ -188,11 +206,10 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
               {fontWait && <span className="absolute top-2 left-2 bg-tin text-kohl border-2 border-kohl px-2 font-bold">load ho raha</span>}
             </motion.div>
           </div>
-          <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
-            <button className="tin-btn" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Roko" : "Chalao"}>{playing ? "Roko" : "Chalao"}</button>
-            <span className="mono text-[14px] bg-kohl px-2 py-1 border-2 border-chai inline-block w-[19ch] text-center">{fmt(t)} / {fmt(total)}</span>
-            <button className="tin-btn chai" onClick={onOpenBahi}>Bahi</button>
-            <button className="tin-btn mirchi" onClick={onOpenPress}>Status pe daalo</button>
+          <div className="flex items-center gap-2 mt-3 flex-wrap justify-center pl-[64px] sm:pl-0">
+            <button className="tin-btn min-w-[84px]" onClick={() => setPlaying((p) => !p)} aria-label={playing ? (en ? "Pause" : "Roko") : (en ? "Play" : "Chalao")}>{playing ? (en ? "Pause" : "Roko") : (en ? "▶ Play" : "▶ Chalao")}</button>
+            <span className="mono text-[13px] bg-kohl text-chai px-2 py-1 border-2 border-chai inline-block whitespace-nowrap text-center" aria-live="off">{fmt(t)} <span className="opacity-70">/ {(total / 1000).toFixed(1)}s</span></span>
+            <button className="tin-btn mirchi" onClick={onOpenPress}>{en ? "4. Send →" : "4. Bhejo →"}</button>
           </div>
           <StyleRow doc={doc} t={t} playing={playing} onPick={(s, scope) => flipTo(s, STYLE_ORDER.indexOf(s) > STYLE_ORDER.indexOf(doc.style) ? 1 : -1, scope)} />
         </div>
@@ -205,6 +222,10 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
       <Strip doc={doc} t={t} sel={sel} setSel={setSel} seek={(ms) => { setPlaying(false); seek(ms); }} move={move} trim={trim}
         past={past} fut={fut} over={over}
         onToolbar={(a) => {
+          if (a === "bahi") { onOpenBahi(); return; }
+          if (a === "add") { setLibrary(true); return; }
+          if (a === "loop") { setLoop((l) => !l); return; }
+          if (a === "slow") { setSlow((l) => !l); return; }
           if (!selScene) return;
           const i = doc.scenes.findIndex((s) => s.id === selScene.id);
           if (a === "split") {
@@ -438,6 +459,7 @@ function Strip({ doc, t, sel, setSel, seek, move, trim, past, fut, over, onToolb
         <button className="chip shrink-0" aria-pressed={slow} onClick={() => onToolbar("slow")}>0.5x</button>
         <button className="chip shrink-0 lg:hidden" disabled={!sel} onClick={() => onToolbar("inspect")}>Jaanch</button>
         <button className="chip shrink-0" onClick={() => setZoom((z) => (z >= 4 ? 0.5 : z * 2))} aria-label="Zoom">{zoom}x</button>
+        <button className="chip shrink-0" onClick={() => onToolbar("bahi")}>Bahi</button>
         <span className={`ml-auto shrink-0 mono text-[13px] px-2 ${over > 0 ? "bg-mirchi text-chai" : "text-chai"}`}>{over > 0 ? `${doc.lengthSec} sec se ${(over / 1000).toFixed(1)} sec zyada` : `${(total / 1000).toFixed(1)}s`}</span>
       </div>
       <div className="flex items-stretch flex-1 min-h-0">

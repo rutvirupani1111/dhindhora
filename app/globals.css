@@ -41,15 +41,18 @@
   --font-mono: var(--f-martian), ui-monospace, monospace;
 }
 
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--ground); color: var(--ink);
-  font-family: var(--font-body); font-weight: 500; font-size: 16px; line-height: 1.45;
-  overflow-x: hidden; min-height: 100svh;
+/* Resets live in the base layer so Tailwind utilities (text-*, font-*, bg-*) always win over them. */
+@layer base {
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--font-body); font-weight: 500; font-size: 16px; line-height: 1.45;
+    overflow-x: hidden; min-height: 100svh;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--focus); }
 }
-button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: none; box-shadow: var(--focus); }
 [hidden] { display: none !important; }
 
 /* Materials */
@@ -77,6 +80,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background-size: 14px 10px; background-repeat: repeat-x;
 }
 
+@layer components {
 /* Buttons that look like painted tin */
 .tin-btn {
   min-height: 44px; min-width: 44px; padding: 8px 16px; border: 2px solid var(--kohl);
@@ -92,6 +96,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tin-btn.kohl { background: var(--kohl); color: var(--chai); box-shadow: 4px 4px 0 var(--haldi); }
 .chip { min-height: 44px; min-width: 44px; padding: 6px 12px; border: 2px solid var(--kohl); background: var(--chai); color: var(--kohl); font-weight: 700; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--kohl); color: var(--haldi); }
+}
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* Lane parallax: CSS scroll-driven where supported, otherwise static. No scroll JS. */
@@ -108,9 +113,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .gate { position: fixed; inset: 0; z-index: 60; perspective: 1800px; background: var(--dusk); }
 .gate-shutter { position: absolute; inset: 0 0 16% 0; display: flex; flex-direction: column; transform-origin: top; will-change: transform; }
 .gate-shutter .rib { flex: 1; transform-origin: bottom; border-bottom: 2px solid #5f5d58; }
-.gate-sign { position: absolute; left: 50%; top: 9%; transform: translateX(-50%); z-index: 2; will-change: transform; }
+.gate-sign { position: absolute; left: 0; right: 0; top: 9%; display: flex; justify-content: center; z-index: 2; will-change: transform; }
 
 .drummer-part { transform-box: fill-box; }
+/* The drummer stands in the bottom-left corner; in the booth he steps up above the reel strip. */
+.drum-dock { position: fixed; left: 8px; bottom: 10px; z-index: 40; }
+html[data-place="booth"] .drum-dock { bottom: 146px; }
+/* Steps in the studio header: number, verb, and the place name underneath */
+.step-n { font-family: var(--font-poster); font-size: 20px; line-height: 1; }
 @media (prefers-reduced-motion: no-preference) {
   html:not(.calm) .drummer[data-state="idle"] .d-torso { animation: breathe 2.4s steps(2) infinite; }
 }

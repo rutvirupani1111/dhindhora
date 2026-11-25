@@ -2,12 +2,14 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Doc } from "@/packages/renderer/core";
-import { migrate } from "@/packages/renderer/core";
+import { STYLE_ORDER, migrate } from "@/packages/renderer/core";
+import { STYLES } from "@/packages/renderer/styles";
 import { coverTime } from "@/packages/renderer/frame";
 import { idb } from "@/lib/client/idb";
 import { blankDoc } from "@/lib/client/newdoc";
+import { reshuffle } from "@/lib/client/edit";
 import { useStudio } from "@/lib/client/store";
 import { DocCanvas } from "../DocCanvas";
 import { useShell } from "../Shell";
@@ -17,11 +19,12 @@ import { Parchi } from "./Parchi";
 import { Press } from "./Press";
 
 export type At = "parchi" | "board" | "booth" | "press";
-const PLACES: { at: At; label: string; en: string }[] = [
-  { at: "parchi", label: "Parchi", en: "Brief" },
-  { at: "board", label: "Deewar", en: "Wall" },
-  { at: "booth", label: "Tambu", en: "Editor" },
-  { at: "press", label: "Chhapakhana", en: "Export" },
+/** Four numbered steps. The verb says what you do there; the place name is the world's name for it. */
+const PLACES: { at: At; verb: string; en: string; place: string; placeEn: string }[] = [
+  { at: "parchi", verb: "Likho", en: "Write", place: "parchi", placeEn: "brief" },
+  { at: "board", verb: "Dekho", en: "Review", place: "deewar", placeEn: "wall" },
+  { at: "booth", verb: "Sajao", en: "Edit", place: "tambu", placeEn: "booth" },
+  { at: "press", verb: "Bhejo", en: "Send", place: "chhapakhana", placeEn: "press" },
 ];
 
 export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
@@ -31,12 +34,16 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
   const doc = useStudio((s) => s.doc);
   const sync = useStudio((s) => s.sync);
   const conflict = useStudio((s) => s.conflict);
+  const version = useStudio((s) => s.version);
   const [at, setAtS] = useState<At>(initialAt);
   const [bahi, setBahi] = useState(false);
   const [rects, setRects] = useState<Record<string, DOMRect> | null>(null);
 
-  const setAt = (a: At) => { setAtS(a); router.replace(`/studio/${id}?at=${a}`, { scroll: false }); };
+  const [palette, setPalette] = useState(false);
+  const setAt = (a: At) => { setAtS(a); router.replace(`/studio/${id}?at=${a}`, { scroll: false }); window.scrollTo({ top: 0 }); };
   useEffect(() => { const a = sp.get("at") as At | null; if (a && a !== at) setAtS(a); }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the drummer and other fixed props read the current place from <html data-place>
+  useEffect(() => { document.documentElement.dataset.place = at; return () => { delete document.documentElement.dataset.place; }; }, [at]);
 
   // first paint from IndexedDB, server copy reconciles in the background
   useEffect(() => {
@@ -45,6 +52,8 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
       const local = await idb.getDoc(id);
       const st = useStudio.getState();
       if (local && alive) await st.load(id, migrate(local.doc), local.version, local.base, { visibility: local.visibility, status: local.status, publishedVersion: local.publishedVersion });
+      // a brand-new shop has nothing on the server yet: open the blank chit at once
+      if (!local && sp.get("new") === "1") { if (alive) await useStudio.getState().load(id, blankDoc(), 0, null); return; }
       const r = await fetch(`/api/projects/${id}`).catch(() => null);
       if (!alive) return;
       if (r?.ok) {
@@ -66,9 +75,10 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
     return () => { window.removeEventListener("dh-saved", ok); window.removeEventListener("dh-offline", off); };
   }, [setDrum]);
 
-  // global keys: undo / redo
+  // global keys: undo / redo, and Ctrl/Cmd+K for the command palette
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); return; }
       const tgt = e.target as HTMLElement;
       if (tgt.closest("input,textarea,[contenteditable=true]")) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) useStudio.getState().redo(); else useStudio.getState().undo(); }
@@ -77,7 +87,15 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
     return () => window.removeEventListener("keydown", k);
   }, []);
 
-  const sign = sync === "sent" || sync === "idle" ? { t: "Bhej diya", c: "bg-tota text-chai" } : sync === "sending" ? { t: "Bhej rahe hain", c: "bg-chai text-kohl" } : sync === "failed" ? { t: "Phir bhejo", c: "bg-mirchi text-chai" } : sync === "conflict" ? { t: "Do version", c: "bg-genda text-kohl" } : { t: "Phone pe rakh liya", c: "bg-haldi text-kohl" };
+  const en = lang === "en";
+  // honest save sign: a shop that was never saved does not claim "sent"
+  const sign = version === 0 && (sync === "idle" || sync === "sent")
+    ? { t: en ? "Not saved yet" : "Abhi save nahi", c: "bg-dusk text-chai" }
+    : sync === "sent" || sync === "idle" ? { t: en ? "Saved ✓" : "Bhej diya ✓", c: "bg-tota text-chai" }
+    : sync === "sending" ? { t: en ? "Saving" : "Bhej rahe hain", c: "bg-chai text-kohl" }
+    : sync === "failed" ? { t: en ? "Retry" : "Phir bhejo", c: "bg-mirchi text-chai" }
+    : sync === "conflict" ? { t: en ? "Two versions" : "Do version", c: "bg-genda text-kohl" }
+    : { t: en ? "Saved on phone" : "Phone pe rakh liya", c: "bg-haldi text-kohl" };
 
   if (!doc) {
     return (
@@ -87,22 +105,29 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
     );
   }
   const goBoard = (r: Record<string, DOMRect>) => { setRects(r); setAt("board"); };
+  const made = doc.scenes.length > 0;
 
   return (
     <div className="min-h-svh bg-dusk text-chai">
       <header className="sticky top-0 z-30 bg-kohl border-b-4 border-haldi">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <Link href="/" className="font-display text-[22px] text-chai no-underline min-h-[44px] flex items-center" aria-label="Gali mein wapas">ढिं</Link>
-          <h1 className="m-0 font-display text-[clamp(18px,4.6vw,24px)] truncate flex-1" style={{ viewTransitionName: `title-${id}` }}>{doc.brief.name || "Nayi dukaan"}</h1>
-          <button className={`min-h-[44px] px-2 border-2 border-chai text-[15px] font-bold ${sign.c}`} onClick={() => { if (sync === "failed") useStudio.getState().flush(); else setBahi(true); }} aria-label={`${sign.t}. Bahi kholo`}>{sign.t}</button>
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          <Link href="/" className="font-display text-[22px] text-chai no-underline min-h-[44px] min-w-[44px] flex items-center" aria-label={en ? "Back to the lane" : "Gali mein wapas"}>ढिं</Link>
+          <h1 className="m-0 font-display text-[clamp(18px,4.6vw,24px)] truncate flex-1 min-w-0" style={{ viewTransitionName: `title-${id}` }}>{doc.brief.name || (en ? "New shop" : "Nayi dukaan")}</h1>
+          <button className={`min-h-[44px] px-2 border-2 border-chai text-[14px] leading-tight font-bold max-w-[42vw] ${sign.c}`} onClick={() => { if (sync === "failed") useStudio.getState().flush(); else setBahi(true); }} aria-label={`${sign.t}. ${en ? "Open the history ledger" : "Bahi kholo"}`}>{sign.t}</button>
         </div>
-        <nav className="flex overflow-x-auto no-scrollbar" aria-label="Studio ki jagah">
-          {PLACES.map((p) => (
-            <button key={p.at} onClick={() => setAt(p.at)} aria-current={at === p.at ? "page" : undefined}
-              className={`flex-1 min-h-[44px] min-w-[84px] px-2 font-bold border-0 border-r-2 border-dusk cursor-pointer ${at === p.at ? "bg-haldi text-kohl" : "bg-kohl text-chai"}`}>
-              {lang === "en" ? p.en : p.label}
-            </button>
-          ))}
+        <nav className="grid grid-cols-4" aria-label={en ? "Steps" : "Kadam"}>
+          {PLACES.map((p, i) => {
+            const locked = i > 0 && !made;
+            const here = at === p.at;
+            return (
+              <button key={p.at} aria-current={here ? "step" : undefined} aria-disabled={locked || undefined}
+                onClick={() => { if (locked) { toast(en ? "First fill the chit and press Make" : "Pehle parchi bharo aur Banao dabao"); return; } setAt(p.at); }}
+                className={`min-h-[52px] min-w-0 px-1 py-1 border-0 border-r-2 last:border-r-0 border-dusk cursor-pointer flex flex-col items-center justify-center leading-tight ${here ? "bg-haldi text-kohl" : locked ? "bg-kohl text-chai/45" : "bg-kohl text-chai"}`}>
+                <span className="flex items-baseline gap-1"><span className="step-n">{i + 1}</span><span className="font-bold text-[15px]">{en ? p.en : p.verb}</span></span>
+                <span className={`text-[11px] ${here ? "text-kohl/80" : "opacity-70"}`}>{en ? p.placeEn : p.place}</span>
+              </button>
+            );
+          })}
         </nav>
       </header>
 
@@ -111,11 +136,12 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
           {at === "parchi" && <Parchi onMade={goBoard} />}
           {at === "board" && <Board rects={rects} onClearRects={() => setRects(null)} onOpenBooth={() => setAt("booth")} onOpenParchi={() => setAt("parchi")} />}
           {at === "booth" && <Booth onOpenPress={() => setAt("press")} onOpenBahi={() => setBahi(true)} />}
-          {at === "press" && <Press id={id} />}
+          {at === "press" && <Press id={id} onOpenBooth={() => setAt("booth")} />}
         </motion.main>
       </AnimatePresence>
 
       {bahi && <Bahi onClose={() => setBahi(false)} />}
+      {palette && <Palette onClose={() => setPalette(false)} made={made} go={(a) => setAt(a)} openBahi={() => setBahi(true)} />}
       {conflict && <ConflictSheet mine={conflict.mine} theirs={conflict.theirs} onPick={(k) => { useStudio.getState().resolveConflict(k); toast(k === "mine" ? "Phone wala rakha" : "Server wala rakha"); }} />}
     </div>
   );
@@ -164,6 +190,68 @@ function ConflictSheet({ mine, theirs, onPick }: { mine: Doc; theirs: Doc; onPic
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+type Cmd = { id: string; hi: string; en: string; run: () => void; needsScenes?: boolean };
+/** Command palette (Ctrl/Cmd+K): every studio action by name, in Hinglish or English. */
+function Palette({ onClose, go, openBahi, made }: { onClose: () => void; go: (a: At) => void; openBahi: () => void; made: boolean }) {
+  const { lang, setLang, calm, setCalm, toast } = useShell();
+  const commit = useStudio((s) => s.commit);
+  const [q, setQ] = useState("");
+  const [hi, setHi] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  const styles = STYLE_ORDER.map((st): Cmd => ({ id: "style-" + st, hi: `Rang: ${STYLES[st].label}`, en: `Style: ${STYLES[st].label}`, needsScenes: true, run: () => commit(`Rang badla: ${STYLES[st].label}`, (d) => ({ ...d, style: st })) }));
+  const aspects = (["9:16", "1:1", "16:9"] as const).map((a): Cmd => ({ id: "aspect-" + a, hi: `Naap ${a}`, en: `Aspect ${a}`, run: () => commit(`Naap ${a}`, (d) => ({ ...d, aspect: a })) }));
+  const all: Cmd[] = [
+    { id: "parchi", hi: "1. Likho: parchi kholo", en: "1. Write: open the brief", run: () => go("parchi") },
+    { id: "board", hi: "2. Dekho: deewar pe scenes", en: "2. Review: scenes on the wall", needsScenes: true, run: () => go("board") },
+    { id: "booth", hi: "3. Sajao: tambu mein edit", en: "3. Edit: open the booth", needsScenes: true, run: () => go("booth") },
+    { id: "press", hi: "4. Bhejo: video ya link", en: "4. Send: file or link", needsScenes: true, run: () => go("press") },
+    { id: "shuffle", hi: "Phir se phento (naya take)", en: "Shuffle again (new take)", needsScenes: true, run: () => commit("Naya take", (d) => reshuffle(d)) },
+    { id: "play", hi: "Chalao / roko", en: "Play / pause", needsScenes: true, run: () => { go("booth"); setTimeout(() => window.dispatchEvent(new Event("dh-play")), 350); } },
+    { id: "undo", hi: "Wapas (undo)", en: "Undo", run: () => useStudio.getState().undo() },
+    { id: "redo", hi: "Aage (redo)", en: "Redo", run: () => useStudio.getState().redo() },
+    { id: "bahi", hi: "Bahi: saari likhawat", en: "History ledger", run: openBahi },
+    ...styles, ...aspects,
+    { id: "calm", hi: calm ? "Shaant mode band" : "Shaant mode chalu", en: calm ? "Calm mode off" : "Calm mode on", run: () => setCalm(!calm) },
+    { id: "lang", hi: "English mein dikhao", en: "Show in Hinglish", run: () => setLang(lang === "en" ? "hi-Latn" : "en") },
+    { id: "home", hi: "Gali mein wapas", en: "Back to the lane", run: () => { location.href = "/"; } },
+  ];
+  const needle = q.trim().toLowerCase();
+  const list = all.filter((c) => !needle || c.hi.toLowerCase().includes(needle) || c.en.toLowerCase().includes(needle));
+  const pick = (c: Cmd | undefined) => {
+    if (!c) return;
+    if (c.needsScenes && !made) { toast(lang === "en" ? "First fill the chit and press Make" : "Pehle parchi bharo aur Banao dabao"); return; }
+    onClose(); c.run();
+  };
+  return (
+    <div className="fixed inset-0 z-[70] bg-kohl/70 flex items-start justify-center pt-[12vh] px-4" onClick={onClose}>
+      <div role="dialog" aria-label={lang === "en" ? "Commands" : "Hukum"} className="w-full max-w-[520px] bg-chai text-kohl border-4 border-kohl hard-lg" onClick={(e) => e.stopPropagation()}>
+        <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setHi(0); }} placeholder={lang === "en" ? "Type an action: style, undo, send" : "Kya karna hai? jaise: rang, wapas, bhejo"}
+          aria-label={lang === "en" ? "Search actions" : "Hukum dhoondho"} aria-controls="dh-cmds" aria-activedescendant={list[hi] ? "cmd-" + list[hi].id : undefined}
+          className="w-full min-h-[52px] px-3 text-[17px] bg-[var(--paper)] border-0 border-b-4 border-kohl outline-none"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); onClose(); }
+            else if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(list.length - 1, h + 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(0, h - 1)); }
+            else if (e.key === "Enter") { e.preventDefault(); pick(list[hi]); }
+          }} />
+        <ul id="dh-cmds" role="listbox" className="m-0 p-0 list-none max-h-[50svh] overflow-y-auto">
+          {list.map((c, i) => (
+            <li key={c.id} id={"cmd-" + c.id} role="option" aria-selected={i === hi}>
+              <button className={`w-full min-h-[44px] text-left px-3 border-0 border-b border-kohl/15 cursor-pointer ${i === hi ? "bg-haldi" : "bg-transparent"} ${c.needsScenes && !made ? "opacity-50" : ""}`}
+                onMouseEnter={() => setHi(i)} onClick={() => pick(c)}>
+                {lang === "en" ? c.en : c.hi}
+              </button>
+            </li>
+          ))}
+          {list.length === 0 && <li className="px-3 py-3">{lang === "en" ? "Nothing matches" : "Aisa kuch nahi mila"}</li>}
+        </ul>
+        <p className="m-0 px-3 py-2 text-[13px] border-t-2 border-kohl">Ctrl/Cmd + K, ↑ ↓, Enter, Esc</p>
       </div>
     </div>
   );
