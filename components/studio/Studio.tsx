@@ -135,14 +135,26 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
         <motion.main key={at} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 420, damping: 34 }}>
           {at === "parchi" && <Parchi onMade={goBoard} />}
           {at === "board" && <Board rects={rects} onClearRects={() => setRects(null)} onOpenBooth={() => setAt("booth")} onOpenParchi={() => setAt("parchi")} />}
-          {at === "booth" && <Booth onOpenPress={() => setAt("press")} onOpenBahi={() => setBahi(true)} />}
-          {at === "press" && <Press id={id} onOpenBooth={() => setAt("booth")} />}
+          {at === "booth" && (made ? <Booth onOpenPress={() => setAt("press")} onOpenBahi={() => setBahi(true)} /> : <NotYet en={en} onOpenParchi={() => setAt("parchi")} />)}
+          {at === "press" && (made ? <Press id={id} onOpenBooth={() => setAt("booth")} /> : <NotYet en={en} onOpenParchi={() => setAt("parchi")} />)}
         </motion.main>
       </AnimatePresence>
 
       {bahi && <Bahi onClose={() => setBahi(false)} />}
       {palette && <Palette onClose={() => setPalette(false)} made={made} go={(a) => setAt(a)} openBahi={() => setBahi(true)} />}
       {conflict && <ConflictSheet mine={conflict.mine} theirs={conflict.theirs} onPick={(k) => { useStudio.getState().resolveConflict(k); toast(k === "mine" ? "Phone wala rakha" : "Server wala rakha"); }} />}
+    </div>
+  );
+}
+
+/** A place opened from a link before anything was made: chalk dots and one way forward. */
+function NotYet({ en, onOpenParchi }: { en: boolean; onOpenParchi: () => void }) {
+  return (
+    <div className="rangoli min-h-[70svh] grid place-items-center p-6 text-center">
+      <div className="bg-kohl text-chai p-4 border-2 border-chai max-w-[360px]">
+        <p className="m-0 mb-3">{en ? "Nothing to show here yet. Fill the chit and press Make first." : "Yahan abhi kuch nahi. Pehle parchi bharo aur Banao dabao."}</p>
+        <button className="tin-btn" onClick={onOpenParchi}>{en ? "1. Fill the chit" : "1. Parchi bharo"}</button>
+      </div>
     </div>
   );
 }

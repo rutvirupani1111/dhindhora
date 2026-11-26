@@ -34,10 +34,14 @@ export default function SignIn() {
           <label className="block py-1"><span className="text-[15px] font-bold">Password (kam se kam 8)</span><input type="password" required minLength={8} className="w-full min-h-[44px] bg-transparent border-0 border-b-2 border-kohl/40 text-[17px] outline-none" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} /></label>
           {msg && <p className="m-0 mt-2 text-mirchi font-bold" role="alert">{msg}</p>}
           <div className="flex items-center justify-between gap-3 mt-4 flex-wrap">
-            <button type="submit" disabled={busy} className="tin-btn rounded-full w-[120px] h-[64px] bg-[#c9a227] font-display text-[20px]">{mode === "signin" ? "Andar aao" : "Khaata kholo"}</button>
+            {/* the brass stamp: a turned handle over a round die */}
+            <button type="submit" disabled={busy} className="group flex items-center gap-2 min-h-[56px] pl-1 pr-5 bg-[#c9a227] border-2 border-kohl rounded-full hard font-display text-[20px] text-kohl whitespace-nowrap cursor-pointer active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:opacity-70">
+              <svg aria-hidden viewBox="0 0 40 48" className="w-[34px] h-[42px] transition-transform duration-150 group-active:translate-y-[3px]"><ellipse cx="20" cy="9" rx="9" ry="7" fill="#8a5a2b" stroke="#1B1A17" strokeWidth="2" /><rect x="16" y="14" width="8" height="16" fill="#8a5a2b" stroke="#1B1A17" strokeWidth="2" /><rect x="6" y="30" width="28" height="9" rx="2" fill="#e0b84a" stroke="#1B1A17" strokeWidth="2" /><rect x="8" y="39" width="24" height="5" fill="#D7261E" stroke="#1B1A17" strokeWidth="1.5" /></svg>
+              {busy ? "..." : mode === "signin" ? "Andar aao" : "Khaata kholo"}
+            </button>
             <button type="button" className="chip" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>{mode === "signin" ? "Naya khaata" : "Pehle se khaata hai"}</button>
           </div>
-          <p className="m-0 mt-3 text-[13px]">Google se login abhi band hai. Email aur password se kaam chalega.</p>
+          <p className="m-0 mt-3 text-[13px]">Khaata email aur password se khulta hai. Password kisi ko nahi dikhta, humein bhi nahi.</p>
         </div>
       </form>
       <div className="w-full h-[28vh] plank border-t-4 border-kohl" aria-hidden />

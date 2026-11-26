@@ -1,7 +1,7 @@
 "use client";
 import { animate, motion, useMotionValue } from "motion/react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { coverTime, totalMs } from "@/packages/renderer/frame";
 import { PRESETS, handOff, probeFormat, renderVideo, type Preset, type Probe } from "@/lib/client/export";
 import { loadStyleFonts } from "@/lib/client/fonts";
@@ -29,6 +29,8 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
   const crank = useMotionValue(0);
   const lastBeat = useRef(0);
   const total = totalMs(doc);
+  // one single-scene doc per scene, kept stable so the strip's canvases draw once, not on every progress tick
+  const strip = useMemo(() => doc.scenes.map((s) => ({ ...doc, scenes: [s] })), [doc]);
 
   useEffect(() => { probeFormat().then(setProbe); fetch("/api/me").then((r) => r.json()).then(setMe).catch(() => null); }, []);
   // the paper strip and the drummer stop if the person leaves mid-render
@@ -120,9 +122,23 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
           )}
           <div className="mt-5 flex items-center gap-4">
             {/* the crank lever: starts the render, tap again to cancel */}
-            <button onClick={start} aria-label={prog ? (en ? "Stop the render" : "Render roko") : (en ? "Turn the crank: make the video" : "Crank ghumao: video banao")} className="relative w-[88px] h-[88px] rounded-full bg-kohl border-4 border-haldi cursor-pointer shrink-0">
-              <motion.svg viewBox="0 0 96 96" className="absolute inset-0" style={{ rotate: crank }}>
-                <circle cx="48" cy="48" r="10" fill="#F2B705" /><rect x="45" y="8" width="6" height="40" fill="#F2B705" /><circle cx="48" cy="10" r="9" fill="#D7261E" stroke="#1B1A17" strokeWidth="2" />
+            {/* a green cast-iron hand press: the wheel turns with the real encode progress */}
+            <button onClick={start} aria-label={prog ? (en ? "Stop the render" : "Render roko") : (en ? "Turn the crank: make the video" : "Crank ghumao: video banao")} className="relative w-[112px] h-[100px] bg-transparent border-0 p-0 cursor-pointer shrink-0">
+              <svg viewBox="0 0 112 100" className="absolute inset-0" aria-hidden>
+                <rect x="6" y="88" width="100" height="10" fill="#1B1A17" />
+                <path d="M16 88 L22 40 Q24 30 34 30 H70 Q80 30 82 40 L88 88 Z" fill="#1F5A3A" stroke="#1B1A17" strokeWidth="3" />
+                <path d="M26 82 L30 46 M78 82 L74 46" stroke="#2F7A50" strokeWidth="3" />
+                <rect x="28" y="56" width="48" height="12" rx="6" fill="#8C8A85" stroke="#1B1A17" strokeWidth="2" />
+                <path d="M30 62 h44" stroke="#77756f" strokeWidth="2" />
+                <rect x="34" y="70" width="36" height="6" fill="#F6E9D2" stroke="#1B1A17" strokeWidth="1.5" />
+                <circle cx="52" cy="30" r="5" fill="#F2B705" stroke="#1B1A17" strokeWidth="2" />
+              </svg>
+              <motion.svg viewBox="0 0 48 48" className="absolute right-0 top-2 w-[46px] h-[46px]" style={{ rotate: crank }} aria-hidden>
+                <circle cx="24" cy="24" r="19" fill="none" stroke="#1B1A17" strokeWidth="7" />
+                <circle cx="24" cy="24" r="19" fill="none" stroke="#F2B705" strokeWidth="4" />
+                <path d="M24 6 V42 M6 24 H42" stroke="#F2B705" strokeWidth="3" />
+                <circle cx="24" cy="24" r="5" fill="#D7261E" stroke="#1B1A17" strokeWidth="2" />
+                <circle cx="24" cy="5" r="4.5" fill="#D7261E" stroke="#1B1A17" strokeWidth="2" />
               </motion.svg>
             </button>
             <div className="flex-1 min-w-0">
@@ -141,8 +157,17 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
             </div>
           </div>
           {/* printed frames roll out as a paper strip */}
-          <div className="mt-4 h-10 bg-chai border-2 border-kohl overflow-hidden" aria-hidden>
-            <div className="h-full bg-[repeating-linear-gradient(90deg,var(--kohl)_0_2px,transparent_2px_28px)] transition-[width] duration-150" style={{ width: `${pct}%` }} />
+          {/* the strip holds every scene's real frame; blank paper slides off it as frames are encoded */}
+          <div className="mt-4 h-[58px] bg-chai border-2 border-kohl overflow-hidden relative" aria-hidden>
+            <div className="absolute inset-0 flex gap-1 p-1">
+              {strip.map((d) => (
+                <div key={d.scenes[0].id} className="h-full shrink-0 border border-kohl bg-kohl" style={{ aspectRatio: d.aspect.replace(":", "/") }}>
+                  <DocCanvas doc={d} t={Math.min(d.scenes[0].durMs - 50, 1500)} detail={0} />
+                </div>
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-[var(--paper)] bg-[repeating-linear-gradient(90deg,transparent_0_27px,rgba(27,26,23,.18)_27px_28px)] transition-transform duration-150 ease-out"
+              style={{ transform: `translateX(${file && !prog ? 100 : pct}%)` }} />
           </div>
           {file && !prog && (
             <div className="mt-3 bg-chai text-kohl border-2 border-kohl px-3 py-2">

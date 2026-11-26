@@ -121,8 +121,8 @@
 .drum-dock { position: fixed; left: 8px; bottom: 10px; z-index: 40; }
 html[data-place="booth"] .drum-dock { left: 4px; bottom: 95px; transform: scale(.68); transform-origin: bottom left; }
 @media (min-width: 768px) { html[data-place="booth"] .drum-dock { transform: scale(.5); } }
-html[data-place="lane"] .drum-dock { position: absolute; left: auto; right: 14px; bottom: auto; top: 70px; }
-html[data-place="lane"] .drum-dock > div { left: auto; right: 56px; }
+html[data-place="lane"] .drum-dock { position: absolute; left: var(--drum-x, auto); right: auto; bottom: auto; top: var(--drum-y, 70px); z-index: 11; }
+html[data-place="lane"] .drum-dock > div { left: auto; right: 64px; }
 /* Steps in the studio header: number, verb, and the place name underneath */
 .step-n { font-family: var(--font-poster); font-size: 20px; line-height: 1; }
 @media (prefers-reduced-motion: no-preference) {

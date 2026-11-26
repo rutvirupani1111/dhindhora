@@ -308,6 +308,8 @@ function InlineEditor({ doc, edit, canvas, translitOn, setTranslitOn, onDone }: 
     el.textContent = txt; write(txt);
   };
   const [x, y, w, h] = block.box;
+  // the toolbar floats just above the painted box, or just below it when the box touches the top edge
+  const tbTop = y * k > 60 ? y * k - 54 : (y + h) * k + 10;
   return (
     <>
       <div ref={ref} contentEditable suppressContentEditableWarning role="textbox" aria-label={`${label} ka text`} aria-multiline="true"
@@ -320,7 +322,7 @@ function InlineEditor({ doc, edit, canvas, translitOn, setTranslitOn, onDone }: 
         onBlur={(e) => { if (!(e.relatedTarget as HTMLElement | null)?.closest("[data-edit-toolbar]")) onDone(); }}
         className="absolute outline-none whitespace-pre-wrap break-words"
         style={{ left: x * k, top: y * k, width: w * k, minHeight: h * k, fontFamily: `'${block.family}','Baloo 2',sans-serif`, fontWeight: block.weight, fontSize: block.px * k, lineHeight: 1.18, color: "transparent", caretColor: "var(--haldi)", textAlign: block.align, display: "flex", flexDirection: "column", justifyContent: "center" }} />
-      <div data-edit-toolbar className="absolute left-1/2 -translate-x-1/2 -top-14 flex gap-1 z-10" onMouseDown={(e) => e.preventDefault()}>
+      <div data-edit-toolbar className="absolute left-1/2 -translate-x-1/2 flex gap-1 z-10 p-1 bg-kohl border-2 border-haldi" style={{ top: tbTop }} onMouseDown={(e) => e.preventDefault()}>
         <button className="chip" aria-pressed={translitOn} onClick={() => setTranslitOn(!translitOn)} aria-label="Hinglish se Devanagari">अ/A</button>
         <button className="chip" onClick={emphasize}>Zor</button>
         {Object.keys(roman).length > 0 && <button className="chip" onClick={revertWord}>Roman</button>}

@@ -14,7 +14,8 @@ const demos = [
       lang: "hinglish", name: "Ammi ka Achaar", oneLiner: "Ghar ka swaad, ab har shehar mein",
       points: [{ id: "p1", text: "Sarson ke tel mein dhoop mein pakaya" }, { id: "p2", text: "Koi preservative nahi" }, { id: "p3", text: "Aam, nimbu aur mirchi" }],
       numbers: [], colors: ["#D7261E", "#F2B705"],
-      cta: { text: "Aaj hi order karo", phone: "+91 90000 00001", address: "Kaalpanik Gali, Demo Nagar", url: "" },
+      // demo numbers are deliberately not dialable, so no real person gets calls from a fictional shop
+      cta: { text: "Aaj hi order karo", phone: "+91 00000 00001", address: "Kaalpanik Gali, Demo Nagar", url: "" },
       offer: { oldPrice: 240, newPrice: 199 },
     },
     force: ["seal", "price", "kite", "end"],
@@ -31,7 +32,7 @@ const demos = [
         { id: "n4", value: 3, prefix: "", suffix: "", label: "shifts", sample: true },
       ],
       colors: ["#D7261E", "#00707A"],
-      cta: { text: "Seat pakki karo", phone: "+91 90000 00002", address: "Demo Chowk, Kaalpanik Pur", url: "" },
+      cta: { text: "Seat pakki karo", phone: "+91 00000 00002", address: "Demo Chowk, Kaalpanik Pur", url: "" },
       offer: { endsOn: inTwoWeeks },
     },
     force: ["shutter", "meter", "countdown", "end"],

@@ -17,7 +17,8 @@ async function supports(codec: string, width: number, height: number) {
   try {
     const VE = (window as any).VideoEncoder;
     if (!VE?.isConfigSupported) return false;
-    const r = await VE.isConfigSupported({ codec, width, height, bitrate: 2_000_000, framerate: 30 });
+    // a probe that never answers must not leave the press waiting: give up after 3 s and try the next path
+    const r = await Promise.race([VE.isConfigSupported({ codec, width, height, bitrate: 2_000_000, framerate: 30 }), new Promise((ok) => setTimeout(() => ok(null), 3000))]) as { supported?: boolean } | null;
     return !!r?.supported;
   } catch { return false; }
 }
