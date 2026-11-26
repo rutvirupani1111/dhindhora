@@ -67,6 +67,10 @@ type S = {
 let syncTimer: number | undefined;
 let histTimer: number | undefined;
 let retryN = 0;
+// one save at a time: a second PUT racing the first would carry a stale baseVersion, get a 409 and
+// show the person a conflict with their own half-typed words. The request in flight re-schedules itself
+// when the doc moved on while it was out; anyone who must see the latest save (publish, render) waits for it.
+let inflight: Promise<void> | null = null;
 let lastCoalesce: { key: string; at: number } | null = null;
 const BACKOFF = [2000, 5000, 15000, 60000];
 
@@ -128,11 +132,16 @@ export const useStudio = create<S>((set, get) => {
       set({ doc, base: c.theirs, version: c.version, conflict: null, sync: "local" });
       persist(); schedule(10);
     },
-    async flush() {
+    async flush(): Promise<void> {
+      if (inflight) { await inflight; return get().flush(); }
       const s = get(); if (!s.id || !s.doc || s.conflict) return;
       if (s.sync !== "local" && s.sync !== "failed") return;
       if (typeof navigator !== "undefined" && !navigator.onLine) { set({ sync: "local" }); return; }
       const sent = s.doc;
+      // only the edits that were in this doc get the server tick in the bahi
+      const sentLen = s.past.length;
+      let release!: () => void;
+      inflight = new Promise<void>((ok) => { release = ok; });
       set({ sync: "sending" });
       try {
         let r: Response;
@@ -153,7 +162,7 @@ export const useStudio = create<S>((set, get) => {
         const still = get().doc === sent;
         set({
           version: j.version, base: sent, serverVersion: j.version, sync: still ? "sent" : "local",
-          past: get().past.map((e) => ({ ...e, confirmed: true, failed: false })),
+          past: get().past.map((e, i) => (i < sentLen ? { ...e, confirmed: true, failed: false } : e)),
         });
         persist();
         if (!still) schedule(300);
@@ -164,6 +173,8 @@ export const useStudio = create<S>((set, get) => {
         const wait = BACKOFF[Math.min(retryN++, BACKOFF.length - 1)];
         window.dispatchEvent(new CustomEvent("dh-offline"));
         schedule(wait);
+      } finally {
+        inflight = null; release();
       }
     },
   };
