@@ -608,7 +608,8 @@ function endCard(R: R) {
   // QR frozen in the lock
   const qr = R.lock.qr;
   if (qr) {
-    const size = wide ? S.h * 0.5 : S.w * 0.42;
+    // below the text on tall and square boards; capped by height so a square board keeps it inside the frame
+    const size = wide ? S.h * 0.5 : Math.min(S.w * 0.42, S.h * 0.34);
     const x = wide ? S.x + S.w - size - 20 : W / 2 - size / 2, y = wide ? S.y + S.h / 2 - size / 2 : S.y + S.h * 0.62;
     const a = q(800);
     ctx.globalAlpha = a;

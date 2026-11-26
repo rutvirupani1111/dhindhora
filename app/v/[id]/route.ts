@@ -59,7 +59,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 input[type=range]{flex:1;min-width:80px;height:44px;accent-color:var(--rani)}
 .tc{font:400 14px ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
 .end{width:${maxW};margin-top:12px;background:var(--chai);color:var(--kohl);padding:12px 14px;border:2px solid var(--kohl);box-shadow:4px 4px 0 var(--kohl)}
-.end p{margin:0 0 8px}.end a.cta{color:#00707A}
+.end p{margin:0 0 8px}.end a.cta{color:#00707A;display:block;margin-top:12px;min-height:44px;line-height:44px}
 details{width:${maxW};margin:14px 0 30px;font-weight:500}summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:#cdbfa8}
 form{display:grid;gap:8px;margin-top:6px}select,textarea{font:500 16px "Baloo 2",sans-serif;padding:8px;border:2px solid var(--kohl);background:var(--chai);color:var(--kohl);min-height:44px}
 .help{width:${maxW};font:500 14px "Baloo 2",sans-serif;color:#cdbfa8;margin:8px 0}
