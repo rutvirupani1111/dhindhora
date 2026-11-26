@@ -204,7 +204,8 @@ export function Lane({ demos }: { demos: Demo[] }) {
       </header>
 
       <main className="relative z-10 px-4 pb-40">
-        <p className="mx-auto max-w-[1180px] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[12vh] mb-4">{t("hero")}</p>
+        {demos.length > 0 && <LaneHoarding demos={demos} />}
+        <p className="mx-auto max-w-[1180px] lg:pr-[calc(min(36vw,430px)_+_40px)] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[12vh] mb-4">{t("hero")}</p>
 
         {/* how it works: three painted tin signs nailed in a row, so nobody has to guess */}
         <section className="mx-auto max-w-[1180px] mb-6" aria-labelledby="how">
@@ -326,6 +327,37 @@ function DemoShop({ d }: { d: Demo }) {
         <button className="tin-btn" onClick={remix}>Remix karo</button>
         <a className="tin-btn chai" href={`/v/${d.id}`}>Link pe dekho</a>
         {d.remix_count >= 1 && <span className="self-center text-[15px] font-bold">{d.remix_count} remix</span>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * On wide screens the lane has room for its own lit hoarding: fourteen flat bulbs over a board that plays a demo
+ * live from its JSON, on a pole. Tap the board to open that demo's share page; the tin under it changes the board.
+ */
+function LaneHoarding({ demos }: { demos: Demo[] }) {
+  const { calm, t, lang } = useShell();
+  const [i, setI] = useState(0);
+  const d = demos[i % demos.length];
+  return (
+    <div className="hidden lg:block mx-auto max-w-[1180px] relative h-0" aria-label={lang === "en" ? "Lit hoarding" : "Roshan hoarding"}>
+      <div className="absolute right-0 top-[9vh] w-[min(36vw,430px)] flex flex-col items-center">
+        <div className="relative w-full border-4 border-kohl hard-lg bg-kohl p-3 pt-5">
+          <div aria-hidden className="absolute -top-[9px] inset-x-3 flex justify-between">
+            {Array.from({ length: 14 }, (_, k) => <span key={k} className="block w-[14px] h-[14px] rounded-full bg-haldi border-2 border-kohl" />)}
+          </div>
+          <a href={`/v/${d.id}`} className="block aspect-[16/11] bg-dusk overflow-hidden grid place-items-center" aria-label={`${d.title}: ${lang === "en" ? "open the demo" : "demo kholo"}`}>
+            <span className="block h-full" style={{ aspectRatio: d.doc.aspect.replace(":", "/") }}>
+              <DocCanvas key={d.id} doc={d.doc} playing={!calm} t={coverTime(d.doc)} detail={1} label={`${d.title} demo`} />
+            </span>
+          </a>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="bg-haldi text-kohl font-bold text-[13px] px-2 border-2 border-kohl truncate">{t("demoLabel")}: {d.title}</span>
+            {demos.length > 1 && <button className="chip shrink-0" onClick={() => setI((n) => n + 1)}>{lang === "en" ? "Next board" : "Agla board"}</button>}
+          </div>
+        </div>
+        <div aria-hidden className="w-6 h-[18vh] bg-[#3c2d42] border-x-4 border-kohl" />
       </div>
     </div>
   );

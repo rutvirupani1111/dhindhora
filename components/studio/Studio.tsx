@@ -11,7 +11,7 @@ import { loadStyleFonts } from "@/lib/client/fonts";
 import { idb } from "@/lib/client/idb";
 import { blankDoc } from "@/lib/client/newdoc";
 import { reshuffle } from "@/lib/client/edit";
-import { useStudio } from "@/lib/client/store";
+import { eq, useStudio } from "@/lib/client/store";
 import { DocCanvas } from "../DocCanvas";
 import { useShell } from "../Shell";
 import { Board } from "./Board";
@@ -60,7 +60,10 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
       if (r?.ok) {
         const j = await r.json();
         const meta = { visibility: j.visibility, status: j.status, publishedVersion: j.published_version };
-        if (!local || (!local.dirty && j.version >= local.version)) await useStudio.getState().load(id, migrate(j.doc), j.version, j.doc, meta);
+        // a save that reached the server just before a reload leaves the phone copy marked dirty with the old version:
+        // when the server already holds the same doc, take its version instead of sending it again
+        const same = !!local && eq(local.doc, j.doc);
+        if (!local || same || (!local.dirty && j.version >= local.version)) await useStudio.getState().load(id, migrate(same ? local!.doc : j.doc), j.version, j.doc, meta);
         else { useStudio.getState().setMeta(meta); if (local.dirty) { useStudio.setState({ sync: "local" }); useStudio.getState().flush(); } }
       } else if (!local) {
         await useStudio.getState().load(id, blankDoc(), 0, null);

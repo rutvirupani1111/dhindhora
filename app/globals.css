@@ -52,6 +52,8 @@
   }
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: none; box-shadow: var(--focus); }
+  /* paper and chai surfaces carry kohl ink in both themes: at night --ink turns chai, and chai on chai vanishes */
+  .bg-chai, .paper-lines, .bg-\[var\(--paper\)\] { color: var(--kohl); }
 }
 [hidden] { display: none !important; }
 

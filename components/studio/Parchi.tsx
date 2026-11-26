@@ -1,6 +1,6 @@
 "use client";
 import { Reorder, useAnimate, useDragControls } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Brief, Doc, NumberItem } from "@/packages/renderer/core";
 import { nanoid } from "@/packages/renderer/core";
 import { make, rebrief, validateBrief } from "@/lib/client/edit";
@@ -65,6 +65,7 @@ export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) =>
   const en = lang === "en";
   const [scope, animate] = useAnimate();
   const [busy, setBusy] = useState(false);
+  const [folding, setFolding] = useState<false | { done: () => void }>(false);
   const [logoBusy, setLogoBusy] = useState(false);
   // errors show only for lines the person has left, or after they press Banao: never on an empty chit
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -101,22 +102,13 @@ export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) =>
     setBusy(true);
     const rects: Record<string, DOMRect> = {};
     scope.current?.querySelectorAll("[data-field]").forEach((el: Element) => { rects[(el as HTMLElement).dataset.field!] = el.getBoundingClientRect(); });
-    const skip = () => { commit("Banaya", (d) => make(d)); setBusy(false); onMade(rects); };
+    let finished = false;
+    const skip = () => { if (finished) return; finished = true; setFolding(false); setDrum("idle"); commit("Banaya", (d) => make(d)); setBusy(false); onMade(rects); };
     if (calm) { await animate(scope.current, { opacity: 0 }, { duration: 0.2 }); skip(); return; }
-    const onKey = () => { window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onKey); skip(); };
-    window.addEventListener("keydown", onKey); window.addEventListener("pointerdown", onKey);
-    try {
-      await animate("[data-third='3']", { rotateX: -180 }, { duration: 0.22, ease: [0.65, 0, 0.35, 1] });
-      await animate("[data-third='1']", { rotateX: 180 }, { duration: 0.22, ease: [0.65, 0, 0.35, 1] });
-      setDrum("beat");
-      const p = animate(scope.current, { scale: 0.25, x: -window.innerWidth * 0.38, y: window.innerHeight * 0.3, opacity: 0.2 }, { duration: 0.38, ease: [0.65, 0, 0.35, 1] });
-      beat(); setTimeout(beat, 120); setTimeout(beat, 240);
-      await p;
-    } finally {
-      window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onKey);
-    }
-    setDrum("idle");
-    skip();
+    // the long form steps back and a chit the size of a real parchi takes its place, so the fold and the
+    // drop into the dhol happen where the eye already is, whatever the person had scrolled to
+    animate(scope.current, { opacity: 0 }, { duration: 0.12 });
+    setFolding({ done: skip });
   };
 
   const onLogo = async (f: File | undefined) => {
@@ -271,6 +263,7 @@ export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) =>
         </div>
       </div>
 
+      {folding && <FoldChit brief={b} onDone={folding.done} />}
       {/* the stamp bar: the drummer stands at its left, Banao is the stamp at its right */}
       <div className="fixed inset-x-0 bottom-0 z-30 bg-kohl border-t-4 border-haldi">
         <div className="mx-auto max-w-[560px] flex items-center gap-3 pl-[84px] pr-3 py-2 min-h-[76px]">
@@ -283,6 +276,81 @@ export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) =>
             className={`tin-btn mirchi text-[22px] font-display px-6 rotate-[-3deg] shrink-0 ${missing ? "opacity-70" : ""}`}>
             {doc.scenes.length ? (en ? "Make again" : "Phir banao") : (en ? "Make" : "Banao")}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** What the folding chit shows: the brief as it was written, in the hand of the parchi. */
+function ChitFace({ brief }: { brief: Brief }) {
+  const pts = brief.points.filter((p) => p.text.trim()).slice(0, 4);
+  return (
+    <div className="paper-lines h-full px-4 pt-3 text-kohl">
+      <p className="m-0 font-display text-[24px] leading-[1.15] truncate">{brief.name}</p>
+      <p className="m-0 mt-1 text-[15px] leading-snug line-clamp-2">{brief.oneLiner}</p>
+      <ul className="m-0 mt-3 p-0 list-none flex flex-col gap-1.5">
+        {pts.map((p, i) => <li key={p.id} className="text-[15px] leading-snug truncate"><span className="font-poster text-mirchi mr-2">{i + 1}.</span>{p.text}</li>)}
+      </ul>
+      <p className="m-0 mt-3 inline-block bg-haldi border-2 border-kohl px-2 font-bold text-[15px]">{brief.cta.text}</p>
+    </div>
+  );
+}
+
+/**
+ * Banao, made visible: a parchi-sized chit folds in thirds on paper hinges (bottom flap up, then top flap down,
+ * each 220 ms at perspective 1600), then drops along a short toss arc into the drummer's dhol while he beats
+ * three times. Any tap or key skips straight to the wall.
+ */
+function FoldChit({ brief, onDone }: { brief: Brief; onDone: () => void }) {
+  const [scope, animate] = useAnimate();
+  const { setDrum, beat } = useShell();
+  const [W] = useState(() => Math.min(320, window.innerWidth - 48));
+  const T = 128;
+  useEffect(() => {
+    let alive = true;
+    const off = () => { window.removeEventListener("keydown", end); window.removeEventListener("pointerdown", end); };
+    function end() { if (!alive) return; alive = false; off(); onDone(); }
+    window.addEventListener("keydown", end); window.addEventListener("pointerdown", end);
+    const wait = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+    (async () => {
+      await wait(60);
+      await animate("[data-flap='3']", { rotateX: -180 }, { duration: 0.22, ease: [0.65, 0, 0.35, 1] });
+      if (!alive) return;
+      await animate("[data-flap='1']", { rotateX: 180 }, { duration: 0.22, ease: [0.65, 0, 0.35, 1] });
+      if (!alive || !scope.current) return;
+      const box = (scope.current as HTMLElement).getBoundingClientRect();
+      const dhol = document.querySelector(".drum-dock .d-dhol")?.getBoundingClientRect();
+      const tx = dhol ? dhol.left + dhol.width / 2 : 44, ty = dhol ? dhol.top + dhol.height / 2 : window.innerHeight - 40;
+      const dx = tx - (box.left + box.width / 2), dy = ty - (box.top + box.height / 2);
+      setDrum("beat");
+      // x glides out fast, y first lifts and then falls: two eases on two axes draw the arc
+      await Promise.all([
+        animate(scope.current, { x: dx }, { duration: 0.38, ease: [0.25, 0.1, 0.4, 1] }),
+        animate(scope.current, { y: dy }, { duration: 0.38, ease: [0.45, -0.55, 0.85, 0.6] }),
+        animate(scope.current, { scale: 0.25, rotate: -24 }, { duration: 0.38, ease: [0.4, 0, 0.6, 1] }),
+      ]);
+      if (!alive) return;
+      animate(scope.current, { scale: 0.05, opacity: 0 }, { duration: 0.09 });
+      beat(); await wait(120); beat(); await wait(120); beat(); await wait(260);
+      end();
+    })();
+    return () => { alive = false; off(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="fixed inset-0 z-[35] pointer-events-none" aria-hidden>
+      <div className="absolute left-1/2 top-[46%]" style={{ width: W, height: 3 * T, marginLeft: -W / 2, marginTop: -1.5 * T }}>
+        <div ref={scope} className="relative w-full h-full" style={{ perspective: 1600 }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} data-flap={i} className="absolute inset-x-0" style={{ top: (i - 1) * T, height: T, transformOrigin: i === 1 ? "50% 100%" : "50% 0%", transformStyle: "preserve-3d", zIndex: i === 2 ? 1 : i === 3 ? 2 : 3 }}>
+              {/* the torn top edge rides on the top flap's front */}
+              {i === 1 && <svg viewBox="0 0 100 6" preserveAspectRatio="none" className="absolute left-0 right-0 -top-3 w-full h-3" style={{ backfaceVisibility: "hidden" }}><path d="M0 6 L0 3 L4 1 L8 4 L13 0 L18 3 L24 1 L29 4 L35 0 L41 3 L47 1 L53 4 L58 0 L64 3 L70 1 L76 4 L82 0 L88 3 L94 1 L100 4 L100 6Z" fill="var(--paper)" /></svg>}
+              <div className={`absolute inset-0 overflow-hidden border-x-2 border-kohl ${i === 3 ? "border-b-2" : ""}`} style={{ backfaceVisibility: "hidden" }}>
+                <div className="absolute inset-x-0" style={{ top: -(i - 1) * T, height: 3 * T }}><ChitFace brief={brief} /></div>
+              </div>
+              {i !== 2 && <div className="absolute inset-0 border-2 border-kohl bg-[#efe1c3] bg-[repeating-linear-gradient(180deg,transparent_0_21px,rgba(0,112,122,.14)_21px_22px)]" style={{ backfaceVisibility: "hidden", transform: "rotateX(180deg)" }} />}
+            </div>
+          ))}
         </div>
       </div>
     </div>

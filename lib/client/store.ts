@@ -17,7 +17,15 @@ setQrEncoder((text) => {
 
 export type SyncState = "idle" | "local" | "sending" | "sent" | "failed" | "conflict";
 const HIST_CAP = 200;
-const eq = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/** Canonical form for comparing docs. The server keeps the doc as jsonb, which reorders object keys, so a plain
+ *  JSON.stringify of the same doc differs after a round trip. `lock` is derived layout, recomputed from the rest,
+ *  so it never decides whether two edits disagree. */
+export const canon = (v: unknown) => JSON.stringify(v, (k, x) => {
+  if (k === "lock") return undefined;
+  if (x && typeof x === "object" && !Array.isArray(x)) return Object.fromEntries(Object.keys(x).sort().map((kk) => [kk, (x as Record<string, unknown>)[kk]]));
+  return x;
+});
+export const eq = (a: unknown, b: unknown) => canon(a) === canon(b);
 
 /** Three-way merge by brief field and scene id. A side that changed alone wins; both changed = conflict. */
 export function merge3(base: Doc, mine: Doc, theirs: Doc): { doc: Doc; conflicts: string[] } {

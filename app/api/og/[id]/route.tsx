@@ -5,18 +5,18 @@ import { STYLES } from "@/packages/renderer/styles";
 type Font = { name: string; data: ArrayBuffer; weight: 400; style: "normal" };
 let fontCache: Promise<Font[]> | null = null;
 
-/** Yatra One (Latin and Devanagari subsets) as WOFF, which Satori can read. Falls back to the default face. */
+/** Yatra One as one full TrueType file (Latin and Devanagari in the same face), which Satori reads.
+ *  Asked without a browser user agent, Google Fonts answers with a single .ttf rather than per-script
+ *  woff2 subsets; split subsets of one family made Satori fall back to its default sans. */
 function signFonts(): Promise<Font[]> {
   if (!fontCache) {
     fontCache = (async () => {
-      const ctl = AbortSignal.timeout(2500);
-      // an old browser user agent makes Google Fonts answer with WOFF instead of WOFF2
-      const css = await fetch("https://fonts.googleapis.com/css2?family=Yatra+One&display=swap", {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/534.30 (KHTML, like Gecko) Safari/534.30" }, signal: ctl,
-      }).then((r) => r.text());
-      const urls = Array.from(css.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff)\)/g)).map((m) => m[1]);
-      const datas = await Promise.all(urls.map((u) => fetch(u, { signal: ctl }).then((r) => r.arrayBuffer())));
-      return datas.map((data) => ({ name: "Yatra One", data, weight: 400 as const, style: "normal" as const }));
+      const ctl = AbortSignal.timeout(4000);
+      const css = await fetch("https://fonts.googleapis.com/css2?family=Yatra+One", { signal: ctl }).then((r) => r.text());
+      const url = css.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.(?:ttf|otf|woff))\)/)?.[1];
+      if (!url) throw new Error("no font url");
+      const data = await fetch(url, { signal: ctl }).then((r) => r.arrayBuffer());
+      return [{ name: "Yatra One", data, weight: 400 as const, style: "normal" as const }];
     })().catch(() => { fontCache = null; return []; });
   }
   return fontCache;

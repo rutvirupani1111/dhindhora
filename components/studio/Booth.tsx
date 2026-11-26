@@ -253,14 +253,19 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
         </div>
       )}
       {library && <Library doc={doc} onClose={() => setLibrary(false)} onPick={(type) => {
+        const need = needsFor(doc, type);
+        if (need === "offer") { toast(en ? "Fill the old and new price (or the end date) in the brief first" : "Pehle parchi mein purana aur naya daam (ya aakhri tareekh) bharo"); return; }
         const i = Math.max(0, doc.scenes.findIndex((s) => s.id === sel));
+        // a meter or chart needs numbers; when the brief has none, honest sample numbers go in, tagged "sample" on the video
+        const brief = need === "numbers" ? { ...doc.brief, numbers: sampleNumbers(type) } : doc.brief;
         const src: Record<SceneType, string[]> = {
-          shutter: ["name", "oneLiner"], meter: doc.brief.numbers.slice(0, 1).map((n) => "numbers." + n.id), kite: doc.brief.points.slice(0, 3).map((p) => "points." + p.id),
-          magazine: doc.brief.points.map((p) => "points." + p.id), phone: ["oneLiner"], ladoo: doc.brief.numbers.map((n) => "numbers." + n.id), seal: ["name"], price: ["offer"], countdown: ["offer"], end: ["cta", "name"],
+          shutter: ["name", "oneLiner"], meter: brief.numbers.slice(0, 1).map((n) => "numbers." + n.id), kite: brief.points.slice(0, 3).map((p) => "points." + p.id),
+          magazine: brief.points.map((p) => "points." + p.id), phone: ["oneLiner"], ladoo: brief.numbers.map((n) => "numbers." + n.id), seal: ["name"], price: ["offer"], countdown: ["offer"], end: ["cta", "name"],
         };
         const sc: Scene = { id: nanoid(8), type, variant: 0, durMs: 2000, inMs: 0, speed: 1, source: src[type], text: {}, edited: [], userAdded: true };
-        commit(`${SCENE_LABEL[type].hi} joda`, (d) => { const a = d.scenes.slice(); a.splice(i + 1, 0, sc); return { ...d, scenes: a }; });
+        commit(`${SCENE_LABEL[type].hi} joda`, (d) => { const a = d.scenes.slice(); a.splice(i + 1, 0, sc); return { ...d, brief: need === "numbers" ? brief : d.brief, scenes: a }; });
         setSel(sc.id); setLibrary(false);
+        if (need === "numbers") toast(en ? "Sample numbers added, tagged as sample. Put your real ones in the dial." : "Sample number daale, video pe 'sample' likha aayega. Asli number dial mein bharo.");
       }} />}
     </div>
   );
@@ -572,20 +577,42 @@ function Library({ doc, onClose, onPick }: { doc: Doc; onClose: () => void; onPi
     </div>
   );
 }
+/** What a scene type needs from the brief that this brief does not have yet. */
+function needsFor(doc: Doc, type: SceneType): "numbers" | "offer" | null {
+  if ((type === "meter" || type === "ladoo") && doc.brief.numbers.length === 0) return "numbers";
+  const o = doc.brief.offer;
+  if (type === "price" && !(o?.oldPrice && o?.newPrice)) return "offer";
+  if (type === "countdown" && !o?.endsOn) return "offer";
+  return null;
+}
+/** Placeholder numbers for a meter or chart added by hand to a brief without numbers. Always tagged sample. */
+function sampleNumbers(type: SceneType): Doc["brief"]["numbers"] {
+  if (type === "ladoo") return [
+    { id: "s1", value: 40, prefix: "", suffix: "", label: "Som", sample: true },
+    { id: "s2", value: 65, prefix: "", suffix: "", label: "Mangal", sample: true },
+    { id: "s3", value: 90, prefix: "", suffix: "", label: "Budh", sample: true },
+  ];
+  return [{ id: "s1", value: 500, prefix: "", suffix: "+", label: "Grahak har hafte", sample: true }];
+}
 function LibTile({ doc, type, onPick }: { doc: Doc; type: SceneType; onPick: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const blocked = needsFor(doc, type) === "offer";
   useEffect(() => {
     const c = ref.current; if (!c) return;
-    const sample: Scene = { id: "lib" + type, type, variant: 0, durMs: 2400, inMs: 0, speed: 1, source: type === "kite" || type === "magazine" ? doc.brief.points.map((p) => "points." + p.id) : type === "meter" || type === "ladoo" ? doc.brief.numbers.map((n) => "numbers." + n.id) : type === "end" ? ["cta", "name"] : ["name", "oneLiner"], text: {}, edited: [] };
-    const d: Doc = { ...doc, aspect: "1:1", scenes: [sample] };
+    const brief = needsFor(doc, type) === "numbers" ? { ...doc.brief, numbers: sampleNumbers(type) } : doc.brief;
+    const sample: Scene = { id: "lib" + type, type, variant: 0, durMs: 2400, inMs: 0, speed: 1, source: type === "kite" || type === "magazine" ? brief.points.map((p) => "points." + p.id) : type === "meter" || type === "ladoo" ? brief.numbers.map((n) => "numbers." + n.id) : type === "price" || type === "countdown" ? ["offer"] : type === "end" ? ["cta", "name"] : ["name", "oneLiner"], text: {}, edited: [] };
+    const d: Doc = { ...doc, brief, aspect: "1:1", scenes: [sample] };
     let raf = 0, t0 = 0;
     const loop = (now: number) => { if (!t0) t0 = now; frameAt(c.getContext("2d")!, d, (now - t0) % 2400, { width: 192, height: 192, detail: 0 }); raf = requestAnimationFrame(loop); };
     loadStyleFonts(doc.style).then(() => { raf = requestAnimationFrame(loop); });
     return () => cancelAnimationFrame(raf);
   }, [doc, type]);
   return (
-    <button onClick={onPick} className="bg-transparent border-0 p-0 cursor-pointer flex flex-col items-center gap-1" aria-label={`${SCENE_LABEL[type].hi} jodo`}>
-      <canvas ref={ref} width={192} height={192} className="w-[96px] h-[96px] border-2 border-chai" />
+    <button onClick={onPick} className="bg-transparent border-0 p-0 cursor-pointer flex flex-col items-center gap-1" aria-label={`${SCENE_LABEL[type].hi} jodo${blocked ? ": pehle parchi mein offer bharo" : ""}`}>
+      <span className="relative block">
+        <canvas ref={ref} width={192} height={192} className={`block w-[96px] h-[96px] border-2 border-chai ${blocked ? "opacity-40" : ""}`} />
+        {blocked && <span className="absolute inset-x-1 bottom-1 bg-chai text-kohl text-[12px] leading-tight font-bold px-1 border border-kohl">Parchi mein offer bharo</span>}
+      </span>
       <span className="text-[13px] font-bold text-chai">{SCENE_LABEL[type].hi}</span>
     </button>
   );
