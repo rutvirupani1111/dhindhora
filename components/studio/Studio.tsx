@@ -7,6 +7,7 @@ import type { Doc } from "@/packages/renderer/core";
 import { STYLE_ORDER, migrate } from "@/packages/renderer/core";
 import { STYLES } from "@/packages/renderer/styles";
 import { coverTime } from "@/packages/renderer/frame";
+import { loadStyleFonts } from "@/lib/client/fonts";
 import { idb } from "@/lib/client/idb";
 import { blankDoc } from "@/lib/client/newdoc";
 import { reshuffle } from "@/lib/client/edit";
@@ -223,7 +224,7 @@ function Palette({ onClose, go, openBahi, made }: { onClose: () => void; go: (a:
   const [hi, setHi] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
-  const styles = STYLE_ORDER.map((st): Cmd => ({ id: "style-" + st, hi: `Rang: ${STYLES[st].label}`, en: `Style: ${STYLES[st].label}`, needsScenes: true, run: () => commit(`Rang badla: ${STYLES[st].label}`, (d) => ({ ...d, style: st })) }));
+  const styles = STYLE_ORDER.map((st): Cmd => ({ id: "style-" + st, hi: `Rang: ${STYLES[st].label}`, en: `Style: ${STYLES[st].label}`, needsScenes: true, run: () => { loadStyleFonts(st).then(() => commit(`Rang badla: ${STYLES[st].label}`, (d) => ({ ...d, style: st }))); } }));
   const aspects = (["9:16", "1:1", "16:9"] as const).map((a): Cmd => ({ id: "aspect-" + a, hi: `Naap ${a}`, en: `Aspect ${a}`, run: () => commit(`Naap ${a}`, (d) => ({ ...d, aspect: a })) }));
   const all: Cmd[] = [
     { id: "parchi", hi: "1. Likho: parchi kholo", en: "1. Write: open the brief", run: () => go("parchi") },

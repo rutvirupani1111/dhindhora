@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { Doc } from "@/packages/renderer/core";
 import { relayout, setQrEncoder } from "@/packages/renderer/layout";
 import qrcode from "qrcode-generator";
+import { loadStyleFonts } from "./fonts";
 import { idb, type HistEntry } from "./idb";
 
 setQrEncoder((text) => {
@@ -87,7 +88,11 @@ export const useStudio = create<S>((set, get) => {
   return {
     id: null, doc: null, version: 0, base: null, past: [], future: [], sync: "idle", serverVersion: 0, publishedVersion: null, visibility: "private", status: "draft", conflict: null,
     async load(id, doc, version, base, meta) {
-      const h = await idb.getHist(id);
+      // the layout lock measures text with the video fonts, so they must be in before relayout runs;
+      // a slow or offline font gives up after 2.5 s rather than holding the studio closed
+      const styles = Array.from(new Set([doc.style, ...doc.scenes.map((x) => x.style).filter((x): x is Doc["style"] => !!x)]));
+      const fonts = Promise.race([Promise.all(styles.map(loadStyleFonts)), new Promise((ok) => setTimeout(ok, 2500))]);
+      const [h] = await Promise.all([idb.getHist(id), fonts]);
       set({ id, doc: relayout(doc, undefined, Date.now()), version, base: base || doc, past: h?.past || [], future: h?.future || [], sync: "idle", serverVersion: version, conflict: null, visibility: meta?.visibility || "private", status: meta?.status || "draft", publishedVersion: meta?.publishedVersion ?? null });
     },
     commit(label, fn, opts) {

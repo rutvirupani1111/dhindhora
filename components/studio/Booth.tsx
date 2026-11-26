@@ -525,7 +525,7 @@ function Inspector({ scene, doc }: { scene: Scene; doc: Doc }) {
       <label className="block"><span className="text-[15px] font-bold">Raftaar: <span className="mono">{scene.speed.toFixed(2)}x</span></span>
         <input type="range" min={0.5} max={2} step={0.05} value={scene.speed} className="w-full h-[44px] accent-[var(--rani)]" onChange={(e) => up("Raftaar badli", (s) => markEdited({ ...s, speed: Number(e.target.value) }, "speed"), "spd")} /></label>
       <label className="block"><span className="text-[15px] font-bold">Is scene ka look</span>
-        <select className="w-full min-h-[44px] border-2 border-kohl bg-white/60" value={scene.style || ""} onChange={(e) => up("Scene ka look", (s) => markEdited({ ...s, style: (e.target.value || undefined) as StyleId | undefined }, "style"))}>
+        <select className="w-full min-h-[44px] border-2 border-kohl bg-white/60" value={scene.style || ""} onChange={(e) => { const v = (e.target.value || undefined) as StyleId | undefined; (v ? loadStyleFonts(v) : Promise.resolve()).then(() => up("Scene ka look", (s) => markEdited({ ...s, style: v }, "style"))); }}>
           <option value="">Poori video jaisa</option>{STYLE_ORDER.map((s) => <option key={s} value={s}>{STYLES[s].label}</option>)}
         </select></label>
       {nums.length > 0 && <NumberDial doc={doc} refs={nums} />}
