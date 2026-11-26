@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Baloo_2, Martian_Mono, Rozha_One, Yatra_One } from "next/font/google";
 import "./globals.css";
 import { Shell } from "@/components/Shell";
@@ -17,7 +18,10 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: "#2B1E2F", width: "device-width", initialScale: 1 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Reading the request makes every route render per request, so Next stamps the CSP nonce on its own scripts.
+// A statically prerendered page (sign-in, 404) would ship nonce-less scripts that the CSP then blocks.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await headers();
   return (
     <html lang="hi-Latn" className={`${yatra.variable} ${rozha.variable} ${baloo.variable} ${martian.variable}`} suppressHydrationWarning>
       <body>

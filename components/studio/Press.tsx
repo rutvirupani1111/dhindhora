@@ -93,7 +93,7 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
   const stale = visibility !== "private" && publishedVersion != null && publishedVersion !== version;
   const shownMs = Math.min(total, preset.id === "status" && cut30 ? 30000 : total);
   return (
-    <div className="min-h-[calc(100svh-100px)] bg-[#24301f] pb-28 pt-5 px-3">
+    <div className="min-h-[calc(100svh-100px)] bg-[#24301f] pb-40 pt-5 px-3">
       <p className="mx-auto max-w-[900px] m-0 mb-4 text-chai text-[15px]">
         {en ? "Two ways to send it. Pick one, or do both." : "Bhejne ke do raaste. Ek chuno, ya dono."}{" "}
         <button className="underline decoration-haldi decoration-2 underline-offset-4 bg-transparent border-0 text-chai cursor-pointer min-h-[44px]" onClick={onOpenBooth}>{en ? "← Back to editing" : "← Abhi aur sajana hai"}</button>
@@ -185,6 +185,19 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
             )}
           </div>
         </section>
+      </div>
+
+      {/* the press bar: says what is happening, the drummer stands at its left */}
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-kohl border-t-4 border-haldi">
+        <div className="mx-auto max-w-[900px] flex items-center gap-3 pl-[84px] pr-3 py-2 min-h-[76px]">
+          <p className="m-0 flex-1 min-w-0 text-chai text-[15px] leading-tight" role="status">
+            {prog ? (en ? `Printing: ${pct}%. Tap the crank to stop.` : `Chhap raha hai: ${pct}%. Rokna ho toh crank dabao.`)
+              : file ? (en ? "Done. The file is on your phone." : "Ho gaya. File phone pe hai.")
+              : visibility !== "private" ? (en ? "Your link is live." : "Aapka link chalu hai.")
+              : (en ? "Make the file, send the link, or both." : "File banao ya link bhejo. Dono bhi chalega.")}
+          </p>
+          <button className="tin-btn chai shrink-0" onClick={onOpenBooth}>{en ? "← 3. Edit" : "← 3. Sajao"}</button>
+        </div>
       </div>
     </div>
   );

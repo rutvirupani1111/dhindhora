@@ -4,7 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Doc, Scene } from "@/packages/renderer/core";
 import { SCENE_LABEL } from "@/packages/renderer/core";
 import { totalMs } from "@/packages/renderer/frame";
-import { rebrief, reshuffle } from "@/lib/client/edit";
+import { markEdited, rebrief, reshuffle } from "@/lib/client/edit";
 import { useStudio } from "@/lib/client/store";
 import { DocCanvas } from "../DocCanvas";
 import { useShell } from "../Shell";
@@ -53,6 +53,9 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
   const [sel, setSel] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [slots, setSlots] = useState<Record<string, DOMRect>>({});
+  // long-press a poster to lift it off its nail, drag it to another slot, let go to hang it there
+  const [lift, setLift] = useState<{ id: string; dx: number; dy: number; tilt: number } | null>(null);
+  const suppressClick = useRef(false);
   useEffect(() => {
     if (!rects || !gridRef.current) return;
     const s: Record<string, DOMRect> = {};
@@ -70,6 +73,43 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
     );
   }
   const selScene = doc.scenes.find((s) => s.id === sel);
+  const startPress = (id: string, e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    let lifted = false, lastX = x0, lastT = performance.now();
+    const timer = window.setTimeout(() => { lifted = true; setLift({ id, dx: 0, dy: 0, tilt: 0 }); (navigator as Navigator & { vibrate?: (n: number) => boolean }).vibrate?.(8); }, 450);
+    const mv = (ev: PointerEvent) => {
+      if (!lifted) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) cleanup(); return; }
+      const v = (ev.clientX - lastX) / Math.max(1, performance.now() - lastT);
+      lastX = ev.clientX; lastT = performance.now();
+      setLift({ id, dx: ev.clientX - x0, dy: ev.clientY - y0, tilt: Math.max(-6, Math.min(6, v * 12)) });
+    };
+    const tm = (ev: TouchEvent) => { if (lifted && ev.cancelable) ev.preventDefault(); };
+    const up = (ev: PointerEvent) => {
+      cleanup();
+      if (!lifted) return;
+      suppressClick.current = true; window.setTimeout(() => { suppressClick.current = false; }, 80);
+      const from = useStudio.getState().doc!.scenes.findIndex((x) => x.id === id);
+      let to = from, best = Infinity;
+      gridRef.current?.querySelectorAll<HTMLElement>("[data-index]").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const d = Math.hypot(r.left + r.width / 2 - ev.clientX, r.top + r.height / 2 - ev.clientY);
+        if (d < best) { best = d; to = Number(el.dataset.index); }
+      });
+      setLift(null);
+      if (from >= 0 && to !== from) {
+        commit(`Scene ${from + 1} ko ${to + 1} pe rakha`, (d) => { const a = d.scenes.slice(); const [m] = a.splice(from, 1); a.splice(to, 0, markEdited(m, "order")); return { ...d, scenes: a }; });
+        toast(en ? `Scene ${from + 1} moved to ${to + 1}` : `Scene ${from + 1} ko ${to + 1} pe rakha`, { label: en ? "Undo" : "Wapas", run: () => useStudio.getState().undo() });
+      }
+    };
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up);
+      window.removeEventListener("touchmove", tm);
+    };
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+    window.addEventListener("touchmove", tm, { passive: false });
+  };
   const shuffle = () => {
     commit(`Take ${doc.seed + 1}`, (d) => reshuffle(d));
     toast(`Take ${doc.seed + 1}`, { label: "Wapas", run: () => useStudio.getState().undo() });
@@ -81,7 +121,7 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
         {/* what am I looking at: one plain notice pasted on the wall */}
         <div className="mb-5 bg-chai text-kohl border-2 border-kohl hard px-3 py-2 max-w-[640px]">
           <p className="m-0 font-bold">{en ? `Your video: ${doc.scenes.length} scenes, ${(totalMs(doc) / 1000).toFixed(0)} seconds, playing in this order.` : `Aapki video: ${doc.scenes.length} scene, ${(totalMs(doc) / 1000).toFixed(0)} second, isi kram mein chalenge.`}</p>
-          <p className="m-0 text-[15px]">{en ? "Tap a poster to change its words. Want a different mix? Shuffle again." : "Kisi poster pe tap karo: uski line yahin badlo. Kuch alag chahiye? Phir se phento."}</p>
+          <p className="m-0 text-[15px]">{en ? "Tap a poster to change its words. Hold and drag one to change the order. Want a different mix? Shuffle again." : "Kisi poster pe tap karo: uski line yahin badlo. Der tak daba ke khiskao: kram badlega. Kuch alag chahiye? Phir se phento."}</p>
           <div className="flex gap-2 mt-2 flex-wrap items-center">
             <button className="tin-btn" onClick={shuffle}>{en ? "Shuffle again" : "Phir se phento"}</button>
             <span className="mono text-[13px]">take {doc.seed}</span>
@@ -93,18 +133,21 @@ export function Board({ rects, onClearRects, onOpenBooth, onOpenParchi }: { rect
             const slot = slots[s.id];
             const init = from && slot && !calm ? { x: from.left - slot.left, y: from.top - slot.top, scale: Math.max(0.2, from.width / slot.width), rotate: 0, opacity: 0.6 } : false;
             return (
-              <motion.button key={s.id} layout={!calm} data-slot={s.id} onClick={() => setSel(sel === s.id ? null : s.id)}
+              <motion.button key={s.id} layout={!calm} data-slot={s.id} data-index={i} onClick={() => { if (suppressClick.current) return; setSel(sel === s.id ? null : s.id); }}
+                onPointerDown={(e) => startPress(s.id, e)} onContextMenu={(e) => e.preventDefault()}
                 initial={init as any} animate={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: [0, 3, -1.5, 0] }}
                 transition={{ type: "spring", stiffness: 460, damping: 32, delay: init ? i * 0.09 : 0, rotate: { duration: 0.9, delay: init ? i * 0.09 + 0.3 : 0 } }}
-                className={`relative text-left bg-transparent border-0 p-0 cursor-pointer ${sel === s.id ? "outline outline-4 outline-genda outline-offset-4" : ""}`}
+                className={`relative text-left bg-transparent border-0 p-0 cursor-pointer select-none [-webkit-touch-callout:none] ${lift?.id === s.id ? "z-20" : ""} ${sel === s.id ? "outline outline-4 outline-genda outline-offset-4" : ""}`}
                 style={{ transformOrigin: "50% 0%" }} aria-pressed={sel === s.id}
                 aria-label={`${i + 1}. ${SCENE_LABEL[s.type].hi}, ${(s.durMs / 1000).toFixed(1)} second, ${s.source.map((x) => sourceLabel(x, doc)).join(", ")}`}>
                 <span aria-hidden className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-kohl z-10" />
-                <div className={`bg-kohl hard ${FRAME[s.type]}`}><Poster doc={doc} scene={s} /></div>
+                <div style={lift?.id === s.id ? { transform: `translate(${lift.dx}px, ${lift.dy}px) rotate(${lift.tilt}deg) scale(1.06)`, transformOrigin: "50% 0%" } : undefined}>
+                <div className={`bg-kohl ${lift?.id === s.id ? "hard-lg" : "hard"} ${FRAME[s.type]}`}><Poster doc={doc} scene={s} /></div>
                 <div className="mt-2 bg-chai text-kohl border-2 border-kohl px-2 py-1">
                   <span className="block font-bold text-[15px] leading-tight">{SCENE_LABEL[s.type].hi}</span>
                   <span className="mono text-[13px]">{(s.durMs / 1000).toFixed(1)}s</span>
                   <span className="text-[13px] ml-2 bg-haldi px-1">{sourceLabel(s.source[0], doc)}</span>
+                </div>
                 </div>
               </motion.button>
             );

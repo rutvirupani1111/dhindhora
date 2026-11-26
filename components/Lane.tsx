@@ -31,7 +31,7 @@ function go(router: ReturnType<typeof useRouter>, href: string) {
 }
 
 /** A project shopfront: drag the shutter up 1:1, release past 35% or flick to open. */
-function ShopShutter({ row, local, onSheet }: { row: Row; local?: Local; onSheet: (r: Row) => void }) {
+function ShopShutter({ row, local, onSheet, closing }: { row: Row; local?: Local; onSheet: (r: Row) => void; closing?: boolean }) {
   const router = useRouter();
   const { calm } = useShell();
   const y = useMotionValue(0);
@@ -83,6 +83,12 @@ function ShopShutter({ row, local, onSheet }: { row: Row; local?: Local; onSheet
           <span className="text-[15px] font-bold bg-kohl text-haldi px-2">{status}</span>
           <span className="absolute bottom-2 right-3 text-[15px] text-kohl font-bold">upar kheecho ya tap karo</span>
         </motion.div>
+        {closing && (
+          <motion.span aria-hidden className="absolute left-1/2 top-1/2 font-display text-[44px] leading-none text-chai bg-mirchi border-4 border-kohl px-5 py-1 hard"
+            initial={calm ? { opacity: 0, x: "-50%", y: "-50%", rotate: -8 } : { scale: 2.2, opacity: 0, x: "-50%", y: "-50%", rotate: -16 }}
+            animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%", rotate: -8 }}
+            transition={calm ? { duration: 0.2 } : { duration: 0.18, ease: [0.65, 0, 0.35, 1] }}>BAND</motion.span>
+        )}
       </div>
     </div>
   );
@@ -96,6 +102,10 @@ export function Lane({ demos }: { demos: Demo[] }) {
   const [locals, setLocals] = useState<Record<string, Local>>({});
   const [sheet, setSheet] = useState<Row | null>(null);
   const [me, setMe] = useState<{ kind: string; name: string | null } | null>(null);
+  const [closing, setClosing] = useState<Record<string, boolean>>({});
+  const [renaming, setRenaming] = useState<string | null>(null);
+  // the drummer and other fixed props read the current place from <html data-place>
+  useEffect(() => { document.documentElement.dataset.place = "lane"; return () => { delete document.documentElement.dataset.place; }; }, []);
 
   const load = useCallback(async () => {
     const [a, b, l, m] = await Promise.all([
@@ -112,8 +122,12 @@ export function Lane({ demos }: { demos: Demo[] }) {
   const newShop = () => go(router, `/studio/${newProjectId()}?at=parchi&new=1`);
   const del = async (r: Row) => {
     setSheet(null);
-    setRows((xs) => (xs || []).filter((x) => x.id !== r.id));
+    // the shutter slams with a BAND sticker, then the shopfront leaves the lane
+    setClosing((c) => ({ ...c, [r.id]: true }));
     const res = await fetch(`/api/projects/${r.id}`, { method: "DELETE" });
+    await new Promise((ok) => setTimeout(ok, calm ? 200 : 520));
+    setClosing((c) => { const n = { ...c }; delete n[r.id]; return n; });
+    if (res.ok) setRows((xs) => (xs || []).filter((x) => x.id !== r.id));
     if (!res.ok) { toast("Band nahi hua, phir try karo"); load(); return; }
     toast(`${r.title}: BAND`, { label: "Wapas", run: async () => { await fetch(`/api/projects/${r.id}/restore`, { method: "POST" }); load(); } });
     load();
@@ -124,15 +138,23 @@ export function Lane({ demos }: { demos: Demo[] }) {
     const j = await res.json().catch(() => ({}));
     if (res.ok) go(router, `/studio/${j.id}?at=parchi`); else toast(j.message || "Nahi hua");
   };
-  const rename = async (r: Row) => {
-    const name = prompt("Naya naam", r.title)?.trim().slice(0, 40);
-    setSheet(null);
-    if (!name) return;
+  const rename = async (r: Row, raw: string) => {
+    const name = raw.trim().slice(0, 40);
+    setSheet(null); setRenaming(null);
+    if (!name || name === r.title) return;
+    setRows((xs) => (xs || []).map((x) => (x.id === r.id ? { ...x, title: name } : x)));
     const g = await fetch(`/api/projects/${r.id}`).then((x) => x.json());
-    const doc = { ...g.doc, brief: { ...g.doc.brief, name } };
+    // scenes that paint the name drop their layout lock, so the new name is laid out fresh wherever it is drawn
+    const scenes = (g.doc.scenes as Doc["scenes"]).map((s) => { if (!s.source.includes("name")) return s; const { lock: _old, ...rest } = s; void _old; return rest; });
+    const doc = { ...g.doc, brief: { ...g.doc.brief, name }, scenes };
     const res = await fetch(`/api/projects/${r.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ baseVersion: g.version, doc }) });
-    if (res.ok) { const j = await res.json(); await idb.putDoc({ id: r.id, doc, version: j.version, base: doc, dirty: false, updatedAt: Date.now() }); }
+    if (res.ok) { const j = await res.json(); await idb.putDoc({ id: r.id, doc, version: j.version, base: doc, dirty: false, updatedAt: Date.now() }); toast(`Naam badla: ${name}`); }
+    else toast("Naam nahi badla, phir try karo");
     load();
+  };
+  const signOut = async () => {
+    const r = await fetch("/api/auth", { method: "DELETE" });
+    if (r.ok) { toast(lang === "en" ? "Signed out. Your shops stay in your account." : "Bahar aa gaye. Dukaanein account mein surakshit hain."); load(); }
   };
   const restore = async (r: Row) => { await fetch(`/api/projects/${r.id}/restore`, { method: "POST" }); load(); };
 
@@ -157,7 +179,12 @@ export function Lane({ demos }: { demos: Demo[] }) {
         <div className="flex items-center gap-2">
           <button className="chip" aria-pressed={lang === "en"} onClick={() => setLang(lang === "en" ? "hi-Latn" : "en")} aria-label="Bhasha badlo">{lang === "en" ? "लिपि" : "EN"}</button>
           <button className="chip" aria-pressed={calm} onClick={() => setCalm(!calm)}>{t("calm")}</button>
-          {me?.kind === "member" ? <span className="hidden sm:inline text-chai text-[15px]">{me.name}</span> : <Link href="/signin" className="chip inline-flex items-center no-underline">{t("signin")}</Link>}
+          {me?.kind === "member" ? (
+            <>
+              <span className="hidden sm:inline text-chai text-[15px] max-w-[160px] truncate">{me.name}</span>
+              <button className="chip" onClick={signOut}>{lang === "en" ? "Sign out" : "Bahar jao"}</button>
+            </>
+          ) : <Link href="/signin" className="chip inline-flex items-center no-underline">{t("signin")}</Link>}
         </div>
       </header>
 
@@ -200,7 +227,7 @@ export function Lane({ demos }: { demos: Demo[] }) {
           <h2 id="yours" className="font-display text-chai text-[26px] mb-4">{t("yourShops")}</h2>
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
             {rows === null && Array.from({ length: 2 }, (_, i) => <div key={i} className="aspect-[4/3] shutter-steel border-4 border-kohl opacity-60" aria-hidden />)}
-            {rows?.map((r) => <ShopShutter key={r.id} row={r} local={locals[r.id]} onSheet={setSheet} />)}
+            {rows?.map((r) => <ShopShutter key={r.id} row={r} local={locals[r.id]} onSheet={(x) => { setRenaming(null); setSheet(x); }} closing={!!closing[r.id]} />)}
           </div>
           {rows && rows.length === 0 && (
             <div className="rangoli border-4 border-kohl p-6 text-chai max-w-[560px]">
@@ -240,7 +267,15 @@ export function Lane({ demos }: { demos: Demo[] }) {
         <div className="fixed inset-0 z-50 bg-kohl/60" onClick={() => setSheet(null)}>
           <div role="dialog" aria-label={`${sheet.title}: options`} className="absolute inset-x-0 bottom-0 bg-chai text-kohl border-t-4 border-kohl p-4 pb-8 flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             <p className="m-0 font-display text-[22px]">{sheet.title}</p>
-            <button className="tin-btn chai" onClick={() => rename(sheet)}>Naam badlo</button>
+            {renaming === null ? (
+              <button className="tin-btn chai" onClick={() => setRenaming(sheet.title)}>Naam badlo</button>
+            ) : (
+              <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); rename(sheet, renaming); }}>
+                <input autoFocus value={renaming} maxLength={40} onChange={(e) => setRenaming(e.target.value)} aria-label="Naya naam"
+                  className="flex-1 min-w-0 min-h-[44px] px-2 text-[17px] bg-[var(--paper)] border-2 border-kohl outline-none focus:border-genda" />
+                <button type="submit" className="tin-btn">Rakho</button>
+              </form>
+            )}
             <button className="tin-btn chai" onClick={() => dup(sheet)}>Doosri dukaan ke liye</button>
             <button className="tin-btn mirchi" onClick={() => del(sheet)}>Band karo</button>
           </div>

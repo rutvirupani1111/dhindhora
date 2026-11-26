@@ -1,5 +1,5 @@
 "use client";
-import { useAnimate } from "motion/react";
+import { Reorder, useAnimate, useDragControls } from "motion/react";
 import { useRef, useState } from "react";
 import type { Brief, Doc, NumberItem } from "@/packages/renderer/core";
 import { nanoid } from "@/packages/renderer/core";
@@ -43,6 +43,19 @@ function Line({ label, err, children, hl, id, ok, hint }: { label: string; err?:
     </div>
   );
 }
+/** One point line that can be lifted by its grip and dropped elsewhere; the grip also moves it with the arrow keys. */
+function PointRow({ p, children }: { p: { id: string; text: string }; children: (grip: (e: React.PointerEvent) => void) => React.ReactNode }) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item as="div" value={p} dragListener={false} dragControls={controls} className="relative bg-[var(--paper)]"
+      whileDrag={{ scale: 1.02, rotate: -0.6 }} transition={{ type: "spring", stiffness: 460, damping: 34 }}>
+      {children((e) => controls.start(e))}
+    </Reorder.Item>
+  );
+}
+const Grip = () => (
+  <svg aria-hidden viewBox="0 0 12 18" width="12" height="18"><g fill="currentColor">{[3, 9, 15].map((y) => <g key={y}><circle cx="3" cy={y} r="1.8" /><circle cx="9" cy={y} r="1.8" /></g>)}</g></svg>
+);
 const inputCls = "w-full min-h-[44px] bg-transparent border-0 border-b-2 border-kohl/30 px-1 text-[17px] text-kohl outline-none focus:border-genda";
 
 export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) => void }) {
@@ -163,15 +176,26 @@ export function Parchi({ onMade }: { onMade: (rects: Record<string, DOMRect>) =>
                 {en ? `3 good things about your shop (${filledPts}/3)` : `Dukaan ki 3 achhi baatein (${Math.min(filledPts, 3)}/3)`}
               </p>
             </div>
+            <Reorder.Group as="div" axis="y" values={pts} onReorder={(next) => setBrief(en ? "Points reordered" : "Baaton ka kram badla", (x) => ({ ...x, points: next.map((n) => x.points.find((q) => q.id === n.id) || n) }), "reorder")}>
             {pts.map((p, i) => (
-              <Line key={p.id} label={`${en ? "Point" : "Baat"} ${i + 1}${i >= 3 ? (en ? " (optional)" : " (chaho toh)") : ""}`} err={errors["points." + p.id]} id={"points." + p.id}>
+              <PointRow key={p.id} p={p}>{(grip) => (
+              <Line label={`${en ? "Point" : "Baat"} ${i + 1}${i >= 3 ? (en ? " (optional)" : " (chaho toh)") : ""}`} err={errors["points." + p.id]} id={"points." + p.id}>
                 <div className="flex items-center gap-1">
+                  <button type="button" className="chip touch-none cursor-grab shrink-0 grid place-items-center !px-0 w-[44px]" onPointerDown={grip}
+                    onKeyDown={(e) => {
+                      const to = e.key === "ArrowUp" ? i - 1 : e.key === "ArrowDown" ? i + 1 : -1;
+                      if (to < 0 || to >= pts.length) return;
+                      e.preventDefault();
+                      setBrief(`Point ${i + 1} ${to < i ? "upar" : "neeche"}`, (x) => { const a = x.points.slice(); const [m] = a.splice(i, 1); a.splice(to, 0, m); return { ...x, points: a }; }, "mv");
+                    }}
+                    aria-label={`${en ? "Drag to reorder point" : "Kheech ke kram badlo, baat"} ${i + 1}. ${en ? "Arrow keys move it too." : "Teer wali keys se bhi."}`}><Grip /></button>
                   <input className={inputCls} value={p.text} maxLength={60} placeholder={["Ghar jaisa swaad", "Roz taaza", "Free home delivery"][i] || (en ? "One more thing" : "Aur ek baat")} onBlur={touch("points." + p.id)} onChange={(e) => setBrief(`Point ${i + 1} badla`, (x) => ({ ...x, points: x.points.map((q) => (q.id === p.id ? { ...q, text: e.target.value } : q)) }), "pt" + p.id)} />
-                  <button type="button" className="chip" disabled={i === 0} onClick={() => setBrief(`Point ${i + 1} upar`, (x) => { const a = x.points.slice(); [a[i - 1], a[i]] = [a[i], a[i - 1]]; return { ...x, points: a }; }, "mv")} aria-label={`${en ? "Move point" : "Point"} ${i + 1} ${en ? "up" : "upar karo"}`}>↑</button>
-                  {pts.length > 3 && <button type="button" className="chip" onClick={() => setBrief("Point hataya", (x) => ({ ...x, points: x.points.filter((q) => q.id !== p.id) }), "rm")} aria-label={`${en ? "Remove point" : "Point"} ${i + 1} ${en ? "" : "hatao"}`}>×</button>}
+                  {pts.length > 3 && <button type="button" className="chip shrink-0" onClick={() => setBrief("Point hataya", (x) => ({ ...x, points: x.points.filter((q) => q.id !== p.id) }), "rm")} aria-label={`${en ? "Remove point" : "Point"} ${i + 1} ${en ? "" : "hatao"}`}>×</button>}
                 </div>
               </Line>
+              )}</PointRow>
             ))}
+            </Reorder.Group>
             {pts.length < 6 && <button type="button" className="chip my-2" onClick={() => setBrief("Point joda", (x) => ({ ...x, points: [...x.points, { id: "p" + nanoid(5), text: "" }] }), "add")}>+ {en ? "Point (up to 6)" : "Baat (6 tak)"}</button>}
             <Line label={en ? "Call to action, said on the last board" : "Bulawa: aakhri board pe kya likhein"} err={errors.cta} id="cta" ok={need[3].ok}>
               <input className={inputCls} value={b.cta.text} maxLength={40} placeholder="Aaj hi aaiye" onBlur={touch("cta")} onChange={(e) => setBrief("Bulawa badla", (x) => ({ ...x, cta: { ...x.cta, text: e.target.value } }), "cta")} />

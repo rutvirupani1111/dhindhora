@@ -181,8 +181,9 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
     <div className="tent min-h-[calc(100svh-100px)] pb-[160px]">
       {/* scalloped tent pelmet */}
       <svg aria-hidden viewBox="0 0 200 10" preserveAspectRatio="none" className="block w-full h-4"><path d={"M0 0 H200 V4 " + Array.from({ length: 20 }, (_, i) => `Q${200 - i * 10 - 5} 12 ${200 - (i + 1) * 10} 4`).join(" ") + " Z"} fill="var(--mirchi)" /></svg>
-      <div className="mx-auto max-w-[980px] px-3 grid gap-4 lg:grid-cols-[1fr_300px]">
-        <div className="flex flex-col items-center">
+      {/* minmax(0,1fr) and min-w-0: the style thumbnails scroll inside their own row instead of widening the page */}
+      <div className="mx-auto max-w-[980px] px-3 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="flex flex-col items-center min-w-0">
           {hint && (
             <div className="w-full max-w-[560px] mb-3 bg-chai text-kohl border-2 border-kohl hard px-3 py-2" role="note">
               <p className="m-0 font-bold">{en ? "How to edit here" : "Yahan kaise sajayein"}</p>
@@ -206,7 +207,7 @@ export function Booth({ onOpenPress, onOpenBahi }: { onOpenPress: () => void; on
               {fontWait && <span className="absolute top-2 left-2 bg-tin text-kohl border-2 border-kohl px-2 font-bold">load ho raha</span>}
             </motion.div>
           </div>
-          <div className="flex items-center gap-2 mt-3 flex-wrap justify-center pl-[64px] sm:pl-0">
+          <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
             <button className="tin-btn min-w-[84px]" onClick={() => setPlaying((p) => !p)} aria-label={playing ? (en ? "Pause" : "Roko") : (en ? "Play" : "Chalao")}>{playing ? (en ? "Pause" : "Roko") : (en ? "▶ Play" : "▶ Chalao")}</button>
             <span className="mono text-[13px] bg-kohl text-chai px-2 py-1 border-2 border-chai inline-block whitespace-nowrap text-center" aria-live="off">{fmt(t)} <span className="opacity-70">/ {(total / 1000).toFixed(1)}s</span></span>
             <button className="tin-btn mirchi" onClick={onOpenPress}>{en ? "4. Send →" : "4. Bhejo →"}</button>
@@ -450,7 +451,8 @@ function Strip({ doc, t, sel, setSel, seek, move, trim, past, fut, over, onToolb
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 h-[140px] bg-kohl border-t-4 border-haldi flex flex-col">
-      <div className="flex items-center gap-1 px-2 h-[44px] overflow-x-auto no-scrollbar">
+      {/* the drummer stands at the left end of this row (see .drum-dock), so the tools start after him */}
+      <div className="flex items-center gap-1 pl-[58px] pr-2 h-[44px] overflow-x-auto no-scrollbar">
         <button className="chip shrink-0" onClick={() => onToolbar("add")}>+ Scene</button>
         <button className="chip shrink-0" disabled={!sel} onClick={() => onToolbar("split")}>Kaato</button>
         <button className="chip shrink-0" disabled={!sel} onClick={() => onToolbar("dup")}>Nakal</button>

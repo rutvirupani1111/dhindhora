@@ -39,19 +39,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 @font-face{font-family:"Baloo 2";font-weight:700;src:url(/f/Baloo2-700-latin.woff2) format("woff2");font-display:swap}
 :root{--kohl:#1B1A17;--chai:#F6E9D2;--haldi:#F2B705;--genda:#F07F13;--mirchi:#D7261E;--rani:#E0218A;--dusk:#2B1E2F;color-scheme:dark}
 *{box-sizing:border-box}body{margin:0;min-height:100svh;background:var(--dusk);color:var(--chai);font:700 16px "Baloo 2",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
-.sky{position:fixed;inset:0;pointer-events:none;background:linear-gradient(var(--dusk),var(--dusk))}
-.tank{position:fixed;right:8vw;top:6vh;width:70px;height:54px;background:#3c2d42;border:2px solid var(--kohl)}
+.ground{position:fixed;left:0;right:0;bottom:0;height:10vh;z-index:-1;pointer-events:none;background:repeating-linear-gradient(90deg,#3a2a3f 0 46px,#33243a 46px 48px);border-top:3px solid var(--kohl)}
+.tank{position:fixed;z-index:-1;right:8vw;top:9vh;width:70px;height:54px;background:#3c2d42;border:2px solid var(--kohl)}
 .tank:after{content:"";position:absolute;left:10px;right:10px;top:54px;height:60px;border-left:3px solid #3c2d42;border-right:3px solid #3c2d42}
 header{position:relative;width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 16px}
 header a{color:var(--chai);font-family:"Yatra One",serif;font-size:22px;text-decoration:none;min-height:44px;display:flex;align-items:center}
 .demo{background:var(--haldi);color:var(--kohl);padding:4px 10px;font-size:14px;box-shadow:3px 3px 0 var(--kohl)}
 .hoarding{position:relative;margin-top:8px;width:${maxW};padding:16px;background:#3a2a3f;border:3px solid var(--kohl);box-shadow:6px 6px 0 var(--kohl)}
 .bulbs{position:absolute;inset:-9px;display:flex;justify-content:space-between;pointer-events:none}
-.bulbs i{width:12px;height:12px;border-radius:50%;background:#5b5346;border:2px solid var(--kohl)}
-body.ready .bulbs i{background:var(--haldi)}
+.bulbs i{position:relative;width:12px;height:12px;border-radius:50%;background:#5b5346;border:2px solid var(--kohl)}
+.bulbs i:after{content:"";position:absolute;inset:-2px;border-radius:50%;background:var(--haldi);opacity:0;transition:opacity .18s calc(var(--i) * 55ms)}
+body.ready .bulbs i:after{opacity:1}
 .face{position:relative;width:100%;aspect-ratio:${aw}/${ah};background:var(--kohl)}
 canvas{display:block;width:100%;height:100%;cursor:pointer}
-.pole{width:18px;height:40px;background:#3a2a3f;border:3px solid var(--kohl);border-top:0}
+.pole{width:18px;height:28px;background:#3a2a3f;border:3px solid var(--kohl);border-top:0}
 .ctrl{display:flex;gap:10px;align-items:center;width:${maxW};margin-top:10px;flex-wrap:wrap}
 button,.btn{min-height:44px;min-width:44px;padding:8px 16px;border:2px solid var(--kohl);background:var(--haldi);color:var(--kohl);font:700 16px "Baloo 2",sans-serif;box-shadow:4px 4px 0 var(--kohl);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--genda);outline-offset:2px}
@@ -65,7 +66,7 @@ form{display:grid;gap:8px;margin-top:6px}select,textarea{font:500 16px "Baloo 2"
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head><body>
-<div class="sky" aria-hidden="true"></div><div class="tank" aria-hidden="true"></div>
+<div class="ground" aria-hidden="true"></div><div class="tank" aria-hidden="true"></div>
 <header><a href="/">ढिंढोरा Dhindhora</a>${p.is_demo ? '<span class="demo">Demo: kaalpanik dukaan</span>' : ""}</header>
 <div class="hoarding"><div class="bulbs" aria-hidden="true">${bulbs}</div>
 <div class="face"><canvas id="stage" role="img" aria-label="${title}: silent promo video"></canvas></div></div>
