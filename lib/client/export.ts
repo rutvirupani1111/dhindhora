@@ -23,8 +23,11 @@ async function supports(codec: string, width: number, height: number) {
   } catch { return false; }
 }
 
-/** Says which format this browser will produce, before the render starts. */
-export async function probeFormat(): Promise<Probe> {
+/** Says which format this browser will produce, before the render starts. Asked once per page and kept:
+ *  the studio starts asking while the person edits, so the press already knows when they arrive. */
+let probed: Promise<Probe> | null = null;
+export function probeFormat(): Promise<Probe> { return (probed ||= askFormat()); }
+async function askFormat(): Promise<Probe> {
   const avc = (await supports("avc1.42E01F", 720, 1280)) || (await supports("avc1.640028", 1080, 1920));
   const vp9 = !avc && (await supports("vp09.00.10.08", 720, 1280));
   const MR = (window as any).MediaRecorder;

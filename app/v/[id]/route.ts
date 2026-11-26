@@ -56,8 +56,8 @@ canvas{display:block;width:100%;height:100%;cursor:pointer}
 .ctrl{display:flex;gap:10px;align-items:center;width:${maxW};margin-top:10px;flex-wrap:wrap}
 button,.btn{min-height:44px;min-width:44px;padding:8px 16px;border:2px solid var(--kohl);background:var(--haldi);color:var(--kohl);font:700 16px "Baloo 2",sans-serif;box-shadow:4px 4px 0 var(--kohl);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--genda);outline-offset:2px}
-input[type=range]{flex:1;min-width:140px;height:44px;accent-color:var(--rani)}
-.tc{font:400 14px ui-monospace,monospace;font-variant-numeric:tabular-nums;width:13ch}
+input[type=range]{flex:1;min-width:80px;height:44px;accent-color:var(--rani)}
+.tc{font:400 14px ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
 .end{width:${maxW};margin-top:12px;background:var(--chai);color:var(--kohl);padding:12px 14px;border:2px solid var(--kohl);box-shadow:4px 4px 0 var(--kohl)}
 .end p{margin:0 0 8px}.end a.cta{color:#00707A}
 details{width:${maxW};margin:14px 0 30px;font-weight:500}summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:#cdbfa8}

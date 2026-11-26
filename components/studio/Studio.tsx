@@ -75,6 +75,13 @@ export function Studio({ id, initialAt }: { id: string; initialAt: At }) {
     return () => { window.removeEventListener("dh-saved", ok); window.removeEventListener("dh-offline", off); };
   }, [setDrum]);
 
+  // ask the browser what it can encode while the person is still writing, so the press answers at once
+  useEffect(() => {
+    const go = () => { import("@/lib/client/export").then((m) => m.probeFormat()).catch(() => undefined); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(go); else setTimeout(go, 1500);
+  }, []);
+
   // global keys: undo / redo, and Ctrl/Cmd+K for the command palette
   useEffect(() => {
     const k = (e: KeyboardEvent) => {

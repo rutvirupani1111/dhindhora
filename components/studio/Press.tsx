@@ -144,8 +144,12 @@ export function Press({ id, onOpenBooth }: { id: string; onOpenBooth: () => void
             <div className="flex-1 min-w-0">
               {prog ? (
                 <>
-                  <p className="m-0 text-chai font-bold">{pct}%, {Math.ceil(prog.eta)} {en ? "s left" : "sec baaki"}</p>
-                  <p className="m-0 text-chai/80 text-[13px] mono">{prog.done} / {prog.total} frame</p>
+                  {prog.total > 1 ? (
+                    <>
+                      <p className="m-0 text-chai font-bold">{pct}%, {Math.ceil(prog.eta)} {en ? "s left" : "sec baaki"}</p>
+                      <p className="m-0 text-chai/80 text-[13px] mono">{prog.done} / {prog.total} frame</p>
+                    </>
+                  ) : <p className="m-0 text-chai font-bold">{en ? "Inking the press..." : "Syahi lag rahi hai..."}</p>}
                   <button className="tin-btn mirchi mt-2" onClick={start}>{en ? "Stop" : "Roko"}</button>
                 </>
               ) : (

@@ -106,15 +106,15 @@ export function Lane({ demos }: { demos: Demo[] }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   // the drummer and other fixed props read the current place from <html data-place>
   useEffect(() => { document.documentElement.dataset.place = "lane"; return () => { delete document.documentElement.dataset.place; }; }, []);
-  // on the lane the drummer stands on the Naya dhindhora signboard, announcing the new shop
+  // on the lane the drummer stands at the Naya dhindhora counter, announcing the new shop
   useEffect(() => {
     const root = document.documentElement;
     const place = () => {
       const shop = document.getElementById("naya-shop"); if (!shop) return;
       const r = shop.getBoundingClientRect();
       const h = document.querySelector(".drum-dock svg")?.getBoundingClientRect().height || 64;
-      root.style.setProperty("--drum-x", Math.round(r.right + window.scrollX - h - 18) + "px");
-      root.style.setProperty("--drum-y", Math.round(r.top + window.scrollY - h + 3) + "px");
+      root.style.setProperty("--drum-x", Math.round(r.left + window.scrollX + 12) + "px");
+      root.style.setProperty("--drum-y", Math.round(r.bottom + window.scrollY - h - 8) + "px");
     };
     place();
     const ro = new ResizeObserver(place); ro.observe(document.body);
