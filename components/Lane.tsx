@@ -178,7 +178,7 @@ export function Lane({ demos }: { demos: Demo[] }) {
       {/* back depth: flat dusk sky, water tank, two kites */}
       <svg aria-hidden className="px-back pointer-events-none absolute inset-x-0 top-0 h-[70vh] w-full" preserveAspectRatio="xMidYMin slice" viewBox="0 0 400 300">
         <rect width="400" height="300" fill="var(--dusk)" />
-        <g transform="translate(300 40)"><rect width="56" height="36" fill="#3c2d42" stroke="#1B1A17" strokeWidth="2" /><path d="M8 36 v60 M48 36 v60 M8 66 h40" stroke="#3c2d42" strokeWidth="4" /></g>
+        <g transform="translate(300 40)" className="lg:hidden"><rect width="56" height="36" fill="#3c2d42" stroke="#1B1A17" strokeWidth="2" /><path d="M8 36 v60 M48 36 v60 M8 66 h40" stroke="#3c2d42" strokeWidth="4" /></g>
         <g><path d="M60 40 l18 -18 l18 18 l-18 22z" fill="#E0218A" opacity=".82" stroke="#1B1A17" /><path d="M78 62 q-10 60 30 120" stroke="#1B1A17" fill="none" /></g>
         <g><path d="M200 70 l12 -12 l12 12 l-12 15z" fill="#F2B705" opacity=".82" stroke="#1B1A17" /><path d="M212 85 q20 50 -10 120" stroke="#1B1A17" fill="none" /></g>
       </svg>
@@ -205,7 +205,7 @@ export function Lane({ demos }: { demos: Demo[] }) {
 
       <main className="relative z-10 px-4 pb-40">
         {demos.length > 0 && <LaneHoarding demos={demos} />}
-        <p className="mx-auto max-w-[1180px] lg:pr-[calc(min(36vw,430px)_+_40px)] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[12vh] mb-4">{t("hero")}</p>
+        <p className="mx-auto max-w-[1180px] lg:pr-[calc(min(36vw,430px)_+_40px)] [text-wrap:balance] font-display text-chai text-[clamp(28px,7vw,52px)] leading-[1.05] mt-[12vh] mb-4">{t("hero")}</p>
 
         {/* how it works: three painted tin signs nailed in a row, so nobody has to guess */}
         <section className="mx-auto max-w-[1180px] mb-6" aria-labelledby="how">
