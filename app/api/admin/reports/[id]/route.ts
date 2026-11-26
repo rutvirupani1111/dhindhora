@@ -26,6 +26,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (act === "kept") await db.query("update projects set hidden_at = null where id = $1", [pid]);
   if (act === "hidden") await db.query("update projects set hidden_at = coalesce(hidden_at, now()) where id = $1", [pid]);
   if (act === "deleted") await db.query("update projects set deleted_at = now() where id = $1", [pid]);
-  revalidatePath(`/v/${pid}`);
+  revalidatePath(`/v/${pid}`); revalidatePath(`/v/${pid}/data.json`);
   return json({ ok: true });
 }

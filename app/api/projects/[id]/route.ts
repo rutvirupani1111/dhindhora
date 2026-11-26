@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { getActor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bad, checkOrigin, json, notFound, rateLimit } from "@/lib/http";
@@ -44,5 +45,8 @@ export async function DELETE(req: Request, { params }: P) {
   const { id } = await params;
   const a = await getActor(); if (!a) return notFound();
   const r = await db.query("update projects set deleted_at = now() where id = $1 and owner_id = $2 and deleted_at is null returning id", [id, a.id]);
-  return r[0] ? json({ ok: true }) : notFound();
+  if (!r[0]) return notFound();
+  // a closed shop's link stops playing at once, not when the cached share page next happens to refresh
+  revalidatePath(`/v/${id}`); revalidatePath(`/v/${id}/data.json`);
+  return json({ ok: true });
 }
